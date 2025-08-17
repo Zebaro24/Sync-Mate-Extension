@@ -1,10 +1,13 @@
 {
   "name": "sync-mate-extension",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "cross-env NODE_ENV=production webpack --mode production",
+    "dev": "cross-env NODE_ENV=development webpack --watch --mode development",
+    "lint": "eslint src tests --max-warnings=0",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules npx jest"
   },
   "repository": {
     "type": "git",
@@ -16,5 +19,24 @@
   "bugs": {
     "url": "https://github.com/Zebaro24/Sync-Mate-Extension/issues"
   },
-  "homepage": "https://github.com/Zebaro24/Sync-Mate-Extension#readme"
+  "homepage": "https://github.com/Zebaro24/Sync-Mate-Extension#readme",
+  "devDependencies": {
+    "@babel/preset-env": "^7.28.3",
+    "@eslint/js": "^9.33.0",
+    "@eslint/json": "^0.13.1",
+    "@jest/globals": "^30.0.5",
+    "babel-jest": "^30.0.5",
+    "copy-webpack-plugin": "^13.0.1",
+    "eslint": "^9.33.0",
+    "globals": "^16.3.0",
+    "jest": "^30.0.5",
+    "jest-environment-jsdom": "^30.0.5",
+    "webpack": "^5.101.2",
+    "webpack-cli": "^6.0.1",
+    "webpack-ext-reloader": "^1.1.13"
+  },
+  "jest": {
+    "transform": {},
+    "testEnvironment": "jest-environment-jsdom"
+  }
 }
