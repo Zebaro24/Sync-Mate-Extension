@@ -8,7 +8,7 @@ export default defineConfig([
         files: ["**/*.{js,mjs,cjs}"],
         plugins: {js},
         extends: ["js/recommended"],
-        languageOptions: {globals: {...globals.browser, ...globals.node}}
+        languageOptions: {globals: {...globals.browser, ...globals.node, defineUnlistedScript: "readonly"}}
     },
     {files: ["**/*.json"], plugins: {json}, language: "json/json", extends: ["json/recommended"]},
 ]);
