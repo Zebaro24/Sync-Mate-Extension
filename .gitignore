@@ -139,3 +139,10 @@ vite.config.ts.timestamp-*
 
 # Webshtorm
 .idea/
+
+# Wxt
+.output
+stats.html
+stats-*.json
+.wxt
+web-ext.config.ts
