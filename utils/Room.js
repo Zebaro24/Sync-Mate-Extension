@@ -1,4 +1,4 @@
-import {StatusBox, OverlayLoader} from "./UIIntegrate";
+import {StatusBox, InformationPanel} from "./UIIntegrate";
 
 
 const MSG_TYPES = {
@@ -15,6 +15,7 @@ export default class Room {
     constructor(controlPlayer) {
         this.controlPlayer = controlPlayer;
 
+        this.informationPanel = new InformationPanel();
         this.statusBox = new StatusBox();
         this.socket = null;
 
@@ -107,6 +108,8 @@ export default class Room {
             if (data.message === "success") {
                 this.controlPlayer.setSendStatusFunc(this.sendStatus.bind(this));
             }
+        } else if (data.type === "info") {
+            this.informationPanel.updateInformation(data.name, data.downloaded_time)
         } else if (data.type === "play") {
             this.controlPlayer.play();
         } else if (data.type === "pause") {
