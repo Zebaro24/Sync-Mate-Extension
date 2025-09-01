@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "wxt",
     "build": "wxt zip",
-    "lint": "eslint entrypoints tests --max-warnings=0",
+    "lint": "eslint src tests --max-warnings=0",
     "test": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --no-warnings\" npx jest"
   },
   "repository": {
