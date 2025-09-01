@@ -1,13 +1,14 @@
-import BufferedTime from "./BuferedTime";
-import {OverlayLoader} from "./UIIntegrate";
-
+import BufferedTime from "@/features/player/utills/BuferedTime";
+import {roundTime} from "@/shared/utils/time"
 
 export default class ControlPlayer {
-    constructor(playerElement) {
-        this.player = playerElement;
+    constructor({overlayLoader, player}) {
+        this.player = player;
+
+        this.overlayLoader = overlayLoader;
 
         this.bufferedTime = new BufferedTime();
-        this.overlayLoader = new OverlayLoader();
+
         this.currentTime = null
 
         this.isBlockPause = false;
@@ -21,43 +22,17 @@ export default class ControlPlayer {
         this.isLoadedMetaData = false;
         this.isFirstStart = false;
 
-        this.sendStatus = () => {
-        }
-
-        this.initControls()
+        this._send = () => {
+        };
     }
 
-    initControls() {
-        this.player.addEventListener("loadedmetadata", this.onLoadMetaData);
-        this.player.addEventListener("play", this.onPlay, true);
-        this.player.addEventListener("pause", this.onPause, true);
-        this.player.addEventListener("timeupdate", this.onTimeUpdate);
-        this.player.addEventListener("seeking", this.onSeeking);
-        this.player.addEventListener("progress", this.onProgress);
-        this.player.addEventListener("waiting", this.onWaiting);
-    }
-
-    setSendStatusFunc(func) {
-        this.sendStatus = func;
-    }
-
-    setIsBlockPause(isBlock) {
-        if (this.isBlockPause === isBlock) return;
-        this.isBlockPause = isBlock;
-        if (isBlock) {
-            this.overlayLoader.show()
-        } else {
-            this.overlayLoader.hide()
-        }
-    }
-
-    onLoadMetaData = () => {
+    // region <--- Handlers for listeners --->
+    onLoadedMetadata = () => {
         console.log("Медиа загружено, длительность:", this.player.duration);
         this.isLoadedMetaData = true;
     }
 
-
-    onPlay = (event) => {
+    onUserPlay = () => {
         console.log("Запрос на play")
         if (this.isManualPlay) {
             console.log("Manual play")
@@ -74,8 +49,6 @@ export default class ControlPlayer {
         if (this.isBlockPause) {
             this.pause();
             console.log("Play blocked by pause")
-            event.preventDefault();
-            event.stopImmediatePropagation();
             return;
         }
         console.log("Play применен");
@@ -84,7 +57,7 @@ export default class ControlPlayer {
         this.sendStatus("play");
     }
 
-    onPause = () => {
+    onUserPause = () => {
         console.log("Запрос на pause");
         if (this.isManualPause) {
             console.log("Manual pause")
@@ -162,6 +135,18 @@ export default class ControlPlayer {
         this.sendStatus("play")
         this.setIsBlockPause(true);
     }
+    // endregion
+
+    // region <--- Actions in player --->
+    setIsBlockPause(isBlock) {
+        if (this.isBlockPause === isBlock) return;
+        this.isBlockPause = isBlock;
+        if (isBlock) {
+            this.overlayLoader.show()
+        } else {
+            this.overlayLoader.hide()
+        }
+    }
 
     play() {
         console.log("Запуск функции play")
@@ -194,5 +179,24 @@ export default class ControlPlayer {
 
         this.isManualSeek = true;
         this.player.currentTime = time;
+    }
+    // endregion
+
+    sendStatus(type = "status") {
+        console.log("Send", type, this.player.currentTime)
+        this._send({
+            type: type,
+            current_time: roundTime(this.player.currentTime),
+            downloaded_time: roundTime(this.bufferedTime.getCurrDownTime(this.player.currentTime))
+        })
+    }
+
+
+    onStatus(callback) {
+        this._send = callback;
+        return () => {
+            this._send = () => {
+            };
+        }
     }
 }

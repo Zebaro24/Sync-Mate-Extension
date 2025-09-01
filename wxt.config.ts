@@ -1,7 +1,14 @@
 import {defineConfig} from "wxt";
+import path from 'node:path'
 
 // noinspection JSUnusedGlobalSymbols
 export default defineConfig({
+    srcDir: path.resolve("src"),
+    imports: false,
+    entrypointsDir: 'entrypoints',
+    webExt: {
+        startUrls: ['https://rezka.ag/films/action/76221-supermen-2025-latest.html']
+    },
     manifest: {
         name: "Sync-Mate",
         web_accessible_resources: [
@@ -13,10 +20,13 @@ export default defineConfig({
         permissions: [
             "webRequest",
             "storage",
-            "activeTab"
+            "activeTab",
+        ],
+        host_permissions: [
+            "https://rezka.ag/*",
         ],
     },
     zip: {
         artifactTemplate: 'Sync-Mate-Extension.zip',
-    }
+    },
 });

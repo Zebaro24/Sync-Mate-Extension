@@ -4,6 +4,7 @@ export default class BufferedTime {
     }
 
     getCurrBuffer(currentTime) {
+        // FIXME: Can be less then real
         return this.ranges.find(range => range.start <= currentTime && range.end >= currentTime)
     }
 
