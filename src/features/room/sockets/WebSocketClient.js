@@ -51,9 +51,11 @@ export default class WebSocketClient {
         if (this._ws) {
             try {
                 this._ws.close();
-            } catch {
+            } catch (err) {
+                console.error("Ошибка при закрытии WebSocket:", err);
+            } finally {
+                this._ws = null;
             }
-            this._ws = null;
         }
     }
 
