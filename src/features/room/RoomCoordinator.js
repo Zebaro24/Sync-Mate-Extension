@@ -13,9 +13,10 @@ export default class RoomCoordinator {
     }
 
     async init() {
-        const { roomId } = await sendMessage({ type: BrowserMessageTypes.GET_ROOM_ID });
+        const {roomId} = await sendMessage({type: BrowserMessageTypes.GET_ROOM});
+        console.log("RoomId:", roomId);
 
-        if (roomId){
+        if (roomId) {
             await this._connect(roomId);
         } else {
             this.ui.statusBox.setText("Create room");
@@ -23,7 +24,7 @@ export default class RoomCoordinator {
         }
     }
 
-    dispose(){
+    dispose() {
         this.socket.disconnect();
         this._unsub.forEach((fn) => fn?.());
         this._unsub = [];
@@ -31,9 +32,11 @@ export default class RoomCoordinator {
 
     async _createRoom() {
         try {
-            // TODO: Add name and video_url for create room
-            const {room_id: roomId} = await this.service.createRoom("Name", "Video_URL");
-            await sendMessage({ type: BrowserMessageTypes.SET_ROOM_ID, roomId });
+            // TODO: Add name for create room
+            const {room_id: roomId, link} = await this.service.createRoom("Name", window.location.href);
+            navigator.clipboard.writeText(import.meta.env.WXT_API_URL + link).then(() => console.log("Room link copied to clipboard"));
+            console.log("Room created:", roomId);
+            await sendMessage({type: BrowserMessageTypes.ADD_TO_ROOM, room: {roomId}});
             await this._connect(roomId);
         } catch (e) {
             this.ui.statusBox.setText("Error creating room");
@@ -46,6 +49,10 @@ export default class RoomCoordinator {
         const connected = await this.socket.connect(roomId, name)
         if (!connected) {
             this.ui.statusBox.setText("Error connecting");
+            this.ui.statusBox.onClick(() => {
+                this.ui.statusBox.setText("Create room");
+                this.ui.statusBox.onClick(this._createRoom.bind(this));
+            });
             return;
         }
 
@@ -84,7 +91,7 @@ export default class RoomCoordinator {
         this.dispose();
     }
 
-    _handleStatus(data){
+    _handleStatus(data) {
         this.socket.send(data);
     }
 }

@@ -1,6 +1,7 @@
 export const BrowserMessageTypes = {
-    GET_ROOM_ID: "GET_ROOM_ID",
-    SET_ROOM_ID: "SET_ROOM_ID",
+    GET_ROOM: "GET_ROOM",
+    SET_ROOM: "SET_ROOM",
+    ADD_TO_ROOM: "ADD_TO_ROOM",
 };
 
 export const WSMessageTypes = {

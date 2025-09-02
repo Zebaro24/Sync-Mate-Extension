@@ -9,7 +9,7 @@ export default defineConfig({
     webExt: {
         startUrls: ['https://rezka.ag/films/action/76221-supermen-2025-latest.html']
     },
-    manifest: {
+    manifest: () => ({
         name: "Sync-Mate",
         web_accessible_resources: [
             {
@@ -18,14 +18,16 @@ export default defineConfig({
             }
         ],
         permissions: [
+            "clipboardWrite",
             "webRequest",
             "storage",
             "activeTab",
         ],
         host_permissions: [
-            "https://rezka.ag/*",
+            "https://rezka.ag/*.html",
+            import.meta.env.WXT_API_URL + "/*",
         ],
-    },
+    }),
     zip: {
         artifactTemplate: 'Sync-Mate-Extension.zip',
     },

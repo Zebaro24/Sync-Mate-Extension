@@ -1,21 +1,31 @@
 import {browser} from '#imports';
 import {onMessage, BrowserMessageTypes} from "@/shared/messaging";
-import {parseUrls, parseIdUrl} from "@/shared/utils/parseUrl";
+import {parseUrls, parseUrl} from "@/shared/utils/parseUrl";
 
 
 // noinspection ALL
 export default defineUnlistedScript(() => {
     console.log("Background running...")
 
-    const roomIds = {};
+    const rooms = {};
     onMessage(async (msg, sender) => {
         if (!sender.tab) return {error: "No tab"};
         switch (msg.type) {
-            case BrowserMessageTypes.GET_ROOM_ID: {
-                return {roomId: roomIds[sender.tab.id]};
+            case BrowserMessageTypes.GET_ROOM: {
+                console.log("Message get room:", rooms[sender.tab.id])
+                return rooms[sender.tab.id];
             }
-            case BrowserMessageTypes.SET_ROOM_ID: {
-                roomIds[sender.tab.id] = msg.roomId;
+            case BrowserMessageTypes.SET_ROOM: {
+                rooms[sender.tab.id] = msg.room;
+                console.log("Message set room:", rooms[sender.tab.id])
+                return {"success": true};
+            }
+            case BrowserMessageTypes.ADD_TO_ROOM: {
+                rooms[sender.tab.id] = {
+                    ...(rooms[sender.tab.id] || {}),
+                    ...msg.room,
+                };
+                console.log("Message add to room:", rooms[sender.tab.id])
                 return {"success": true};
             }
             default:
@@ -25,9 +35,12 @@ export default defineUnlistedScript(() => {
 
     browser["webRequest"].onBeforeRequest.addListener(
         (details) => {
-            const roomId = parseIdUrl(details.url);
-            if (!roomId) return;
-            roomIds[details.tabId] = roomId;
+            const roomDetails = parseUrl(details.url);
+            if (!roomDetails) return;
+            rooms[details.tabId] = {
+                ...(rooms[details.tabId] || {}),
+                ...roomDetails,
+            }
         },
         {urls: parseUrls},
     );
