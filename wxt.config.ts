@@ -1,4 +1,5 @@
 import {defineConfig} from "wxt";
+import tailwindcss from "@tailwindcss/vite";
 import path from 'node:path'
 
 // noinspection JSUnusedGlobalSymbols
@@ -31,4 +32,8 @@ export default defineConfig({
     zip: {
         artifactTemplate: 'Sync-Mate-Extension.zip',
     },
+    modules: ['@wxt-dev/module-react'],
+    vite: () => ({
+        plugins: [tailwindcss()],
+    })
 });
