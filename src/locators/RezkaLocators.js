@@ -9,26 +9,24 @@ export default class RezkaLocators extends BaseLocators {
         this.setSelectorsForStatusBox()
 
         this.setSelectorsForPlayer()
-
-        this.transformToElements();
     }
 
     setSelectorsForInformationPanel() {
-        this.playerFrame = {selector: "#oframecdnplayer", all: false};
-        this.playerControlTimeline = {selector: "#cdnplayer_control_timeline", all: false};
+        this.playerFrame = this.defineSelector("#oframecdnplayer");
+        this.playerControlTimeline = this.defineSelector("#cdnplayer_control_timeline");
     }
 
     setSelectorsForOverlayLoader() {
-        this.playerPlayBtn = {selector: "#oframecdnplayer > pjsdiv:nth-child(20)", all: false};
-        this.playerControlTimeline = {selector: "#cdnplayer_control_timeline", all: false};
+        this.playerPlayBtn = this.defineSelector("#oframecdnplayer > pjsdiv:nth-child(20)");
+        this.playerControlTimeline = this.defineSelector("#cdnplayer_control_timeline");
     }
 
     setSelectorsForStatusBox() {
-        this.ratingTable = {selector: "table.b-post__rating_table", all: false};
-        this.socialWrapper = {selector: "div.b-post__social_holder_wrapper", all: false};
+        this.ratingTable = this.defineSelector("table.b-post__rating_table");
+        this.socialWrapper = this.defineSelector("div.b-post__social_holder_wrapper");
     }
 
     setSelectorsForPlayer() {
-        this.player = {selector: "video", all: false};
+        this.player = this.defineSelector("video");
     }
 }
