@@ -13,7 +13,7 @@ export default class RoomCoordinator {
     }
 
     async init() {
-        const {roomId} = await sendMessage({type: BrowserMessageTypes.GET_ROOM});
+        const {roomId} = (await sendMessage({type: BrowserMessageTypes.GET_ROOM})) ?? {};
         console.log("RoomId:", roomId);
 
         if (roomId) {
