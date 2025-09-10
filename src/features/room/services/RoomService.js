@@ -15,4 +15,10 @@ export default class RoomService {
         if (!res.ok) throw new Error(`Network error: ${res.status}`);
         return await res.json();
     }
+
+    async getRoom(roomId) {
+        const res = await fetch(`${API_URL}/rooms/${roomId}`);
+        if (!res.ok) throw new Error(`Network error: ${res.status}`);
+        return await res.json();
+    }
 }
