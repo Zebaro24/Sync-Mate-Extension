@@ -1,11 +1,17 @@
 import {browser} from '#imports';
 import {onMessage, BrowserMessageTypes} from "@/shared/messaging";
 import {parseUrls, parseUrl} from "@/shared/utils/parseUrl";
+import {getItem, setItem} from "@/shared/storage.js";
+import {generateNickname} from "@/shared/utils/nickname.js";
 
 
 // noinspection ALL
 export default defineUnlistedScript(() => {
     console.log("Background running...")
+
+    getItem("name").then(name => {
+        if (!name) setItem("name", generateNickname()).then(() => console.log("Nickname created!"));
+    })
 
     const rooms = {};
     onMessage(async (msg, sender) => {
