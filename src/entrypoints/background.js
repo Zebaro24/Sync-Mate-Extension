@@ -15,9 +15,10 @@ export default defineUnlistedScript(() => {
 
     const rooms = {};
     onMessage(async (msg, sender) => {
-        if (!sender.tab) return {error: "No tab"};
+        if (!sender.tab && !msg.activeTabId) return {error: "No tab"};
         switch (msg.type) {
             case BrowserMessageTypes.GET_ROOM: {
+                if (msg.activeTabId) return rooms[msg.activeTabId];
                 console.log("Message get room:", rooms[sender.tab.id])
                 return rooms[sender.tab.id];
             }
