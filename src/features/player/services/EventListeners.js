@@ -1,6 +1,6 @@
 export default class EventListeners {
-    constructor(player, controller) {
-        this.player = player;
+    constructor(getPlayer, controller) {
+        this.player = getPlayer();
         this.controller = controller;
 
         this._unsub = [];

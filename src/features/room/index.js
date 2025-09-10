@@ -6,12 +6,14 @@ import StatusBox from "@/ui/components/StatusBox";
 
 import WebSocketClient from "./sockets/WebSocketClient";
 import RoomService from "./services/RoomService";
+import ParseInfo from "./utills/ParseInfo.js";
 
 export async function initRoomFeatured(locators, playerCoordinator) {
     const ui = {
         infoPanel: new InfoPanel(locators),
         overlayLoader: new OverlayLoader(locators),
         statusBox: new StatusBox(locators),
+        parseInfo: new ParseInfo(locators),
     };
 
     const socket = new WebSocketClient();

@@ -2,8 +2,8 @@ import BufferedTime from "@/features/player/utills/BuferedTime";
 import {roundTime} from "@/shared/utils/time"
 
 export default class ControlPlayer {
-    constructor({overlayLoader, player}) {
-        this.player = player;
+    constructor({overlayLoader, getPlayer}) {
+        this.player = getPlayer();
 
         this.overlayLoader = overlayLoader;
 

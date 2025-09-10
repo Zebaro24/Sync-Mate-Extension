@@ -30,7 +30,7 @@ export default class RezkaLocators extends BaseLocators {
     }
 
     setSelectorsForPlayer() {
-        this.player = this.defineSelector("video");
+        this.player = this.defineSelector("video", false, true);
     }
 
     setSelectorsForParseInfo() {
