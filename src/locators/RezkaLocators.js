@@ -4,11 +4,14 @@ export default class RezkaLocators extends BaseLocators {
     constructor() {
         super();
 
-        this.setSelectorsForInformationPanel()
-        this.setSelectorsForOverlayLoader()
-        this.setSelectorsForStatusBox()
+        this.setSelectorsForInformationPanel();
+        this.setSelectorsForOverlayLoader();
+        this.setSelectorsForStatusBox();
 
-        this.setSelectorsForPlayer()
+        this.setSelectorsForPlayer();
+
+        this.setSelectorsForParseInfo();
+        this.setSelectorsForChange();
     }
 
     setSelectorsForInformationPanel() {
@@ -28,5 +31,16 @@ export default class RezkaLocators extends BaseLocators {
 
     setSelectorsForPlayer() {
         this.player = this.defineSelector("video");
+    }
+
+    setSelectorsForParseInfo() {
+        this.title = this.defineSelector("h1");
+        this.translator = this.defineSelector(".b-translator__item.active", false, true);
+        this.episode = this.defineSelector(".b-simple_episode__item.active", false, true);
+    }
+
+    setSelectorsForChange() {
+        this.changeTranslator = this.defineSelector("#translators-list");
+        this.changeEpisode = this.defineSelector("#simple-episodes-tabs");
     }
 }
