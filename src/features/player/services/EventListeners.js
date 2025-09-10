@@ -1,6 +1,6 @@
 export default class EventListeners {
-    constructor(player, controller) {
-        this.player = player;
+    constructor(getPlayer, controller) {
+        this.player = getPlayer();
         this.controller = controller;
 
         this._unsub = [];
@@ -13,7 +13,6 @@ export default class EventListeners {
         this._hSeeking = () => this.controller.onSeeking();
         this._hProgress = () => this.controller.onProgress();
         this._hWaiting = () => this.controller.onWaiting();
-
     }
 
     onEventListener(eventName, callback, options) {
@@ -22,7 +21,6 @@ export default class EventListeners {
         this._unsub.push(unsub);
         return unsub;
     }
-
 
     enable() {
         if (this._enabled) return;
@@ -37,6 +35,7 @@ export default class EventListeners {
         this.onEventListener("progress", this._hProgress);
         this.onEventListener("waiting", this._hWaiting);
 
+        console.log("Player event listeners enabled")
     }
 
     disable() {

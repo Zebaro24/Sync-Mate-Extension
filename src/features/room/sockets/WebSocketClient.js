@@ -1,3 +1,5 @@
+import {setItem} from "@/shared/storage.js";
+
 const WS_URL = import.meta.env.WXT_WS_URL;
 
 export default class WebSocketClient {
@@ -22,12 +24,11 @@ export default class WebSocketClient {
 
             const removeAuthMessageHandler = this.onMessage((data) => {
                 if (data.type === "connect") {
-                    if (data.message === "success") {
-                        clearTimeout(timeout);
-                        console.log("WS authentication completed ✅");
-                        removeAuthMessageHandler();
-                        resolve(true);
-                    }
+                    setItem("id", data["id"])
+                    clearTimeout(timeout);
+                    console.log("WS authentication completed ✅");
+                    removeAuthMessageHandler();
+                    resolve(true);
                 }
             })
 

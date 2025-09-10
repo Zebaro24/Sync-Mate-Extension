@@ -13,7 +13,7 @@ export default class RoomCoordinator {
     }
 
     async init() {
-        const {roomId} = await sendMessage({type: BrowserMessageTypes.GET_ROOM});
+        const {roomId} = (await sendMessage({type: BrowserMessageTypes.GET_ROOM})) ?? {};
         console.log("RoomId:", roomId);
 
         if (roomId) {
@@ -61,6 +61,9 @@ export default class RoomCoordinator {
 
         this._unsub.push(this.playerCoordinator.onStatus(this._handleStatus.bind(this)))
 
+        this.socket.send(this.ui.parseInfo.parse());
+        this._unsub.push(this.ui.parseInfo.setWatchInfo(this._handleInfo.bind(this)));
+
         this.playerCoordinator.enable();
 
         this.ui.statusBox.setText("Connected ✅");
@@ -93,5 +96,13 @@ export default class RoomCoordinator {
 
     _handleStatus(data) {
         this.socket.send(data);
+    }
+
+    _handleInfo() {
+        console.log("Update player")
+        this.playerCoordinator.updatePlayer();
+        this.playerCoordinator.enable();
+
+        this.socket.send(this.ui.parseInfo.parse());
     }
 }
