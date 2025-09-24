@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wxt",
+    "prepare": "wxt prepare",
     "build": "wxt zip",
     "lint": "eslint --max-warnings=0",
     "test": "vitest run",
