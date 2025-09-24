@@ -39,4 +39,5 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
       - run: npm ci
+      - run: npm wxt prepare
       - run: npm test
