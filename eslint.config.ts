@@ -10,10 +10,6 @@ export default [
         languageOptions: {
             globals: globals.browser,
             parser: tsParser,
-            parserOptions: {
-                project: "./tsconfig.json",
-                tsconfigRootDir: __dirname,
-            },
         },
         plugins: {
             "@typescript-eslint": tsPlugin,
