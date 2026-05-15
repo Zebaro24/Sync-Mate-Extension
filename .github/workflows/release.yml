@@ -56,10 +56,25 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Configure production env
+        # Берём URL-ы бэкенда из GitHub Variables и кладём в .env.production
+        # (файл в gitignore, в репо его нет). Падаем рано, если переменные не заданы.
+        run: |
+          if [ -z "${{ vars.WXT_API_URL }}" ] || [ -z "${{ vars.WXT_WS_URL }}" ]; then
+            echo "::error::WXT_API_URL or WXT_WS_URL is missing in repo variables."
+            echo "Add them under Settings → Secrets and variables → Actions → Variables."
+            exit 1
+          fi
+          cat > .env.production <<EOF
+          WXT_API_URL=${{ vars.WXT_API_URL }}
+          WXT_WS_URL=${{ vars.WXT_WS_URL }}
+          EOF
+          echo "Generated .env.production:"
+          cat .env.production
+
       - name: Build Chrome (.zip)
         run: npx wxt zip --browser chrome
         env:
-          # Используем production env-файлы (.env.production)
           NODE_ENV: production
 
       - name: Build Firefox (.zip + sources)
