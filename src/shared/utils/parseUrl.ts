@@ -1,6 +1,4 @@
-import { API_URL } from "@/shared/constants/api";
-
-const REZKA_URL = import.meta.env.WXT_REZKA_URL as string;
+import { API_URL, REZKA_URL } from "@/shared/constants/api";
 
 export const parseUrls = [API_URL + "/*", REZKA_URL + "/*"];
 

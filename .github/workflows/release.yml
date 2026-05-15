@@ -57,18 +57,16 @@ jobs:
         run: npm test
 
       - name: Configure production env
-        # Берём URL-ы бэкенда из GitHub Variables и кладём в .env.production
-        # (файл в gitignore, в репо его нет). Падаем рано, если переменные не заданы.
+        # Берём URL бэкенда из repo variable и кладём в .env.production
+        # (файл в gitignore, в репо его нет). Падаем рано, если переменная не задана.
         run: |
-          if [ -z "${{ vars.WXT_API_URL }}" ] || [ -z "${{ vars.WXT_WS_URL }}" ]; then
-            echo "::error::WXT_API_URL or WXT_WS_URL is missing in repo variables."
-            echo "Add them under Settings → Secrets and variables → Actions → Variables."
+          if [ -z "${{ vars.WXT_BACKEND_URL }}" ]; then
+            echo "::error::WXT_BACKEND_URL is missing in repo variables."
+            echo "Add it under Settings → Secrets and variables → Actions → Variables."
+            echo "Example: https://test-sm.zebaro.dev"
             exit 1
           fi
-          cat > .env.production <<EOF
-          WXT_API_URL=${{ vars.WXT_API_URL }}
-          WXT_WS_URL=${{ vars.WXT_WS_URL }}
-          EOF
+          echo "WXT_BACKEND_URL=${{ vars.WXT_BACKEND_URL }}" > .env.production
           echo "Generated .env.production:"
           cat .env.production
 

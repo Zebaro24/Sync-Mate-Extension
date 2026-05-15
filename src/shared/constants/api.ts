@@ -1,5 +1,23 @@
-export const API_URL = import.meta.env.WXT_API_URL as string;
-export const WS_URL = import.meta.env.WXT_WS_URL as string;
+// Константа: домен видеохостинга. Не конфигурируется через env — её нет смысла менять.
+export const REZKA_URL = "https://rezka.ag";
+
+// Базовый URL бэкенда (без trailing /). Пример: http://localhost:8000 или https://example.com.
+// Берётся из .env.{development,production} локально и из repo variable в CI (см. release.yml).
+const BACKEND_URL = ((import.meta.env.WXT_BACKEND_URL as string) || "").replace(
+    /\/+$/,
+    "",
+);
+
+if (!BACKEND_URL) {
+    // Видно сразу в DevTools, чтобы не искать молча сломанные запросы.
+    console.error(
+        "[Sync-Mate] WXT_BACKEND_URL is not set — API/WS calls will fail.",
+    );
+}
+
+export const API_URL = `${BACKEND_URL}/api`;
+// http://...  → ws://...,  https://... → wss://...
+export const WS_URL = `${BACKEND_URL.replace(/^http/, "ws")}/ws`;
 
 export const API_ROUTES = {
     ROOMS: "/rooms",
