@@ -27,7 +27,9 @@ export default defineConfig({
         ],
     }),
     zip: {
-        artifactTemplate: "Sync-Mate-Extension.zip",
+        // {{name}}-{{version}}-{{browser}}.zip (CI читает по этой маске)
+        artifactTemplate: "{{name}}-{{version}}-{{browser}}.zip",
+        sourcesTemplate: "{{name}}-{{version}}-sources.zip",
     },
     modules: ["@wxt-dev/module-react"],
     vite: () => ({

@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  # Позволяет запускать руками из UI (Actions → Release → Run workflow).
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (без префикса v, например 0.2.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write  # для создания релиза
+
+jobs:
+  build:
+    name: Build & Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # нужно для генерации release notes по коммитам
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF##*/}"
+            VERSION="${VERSION#v}"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Release version: $VERSION"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync package.json version
+        # Подставляем версию из тега в package.json — WXT берёт её для манифеста.
+        run: npm version "${{ steps.version.outputs.VERSION }}" --no-git-tag-version --allow-same-version
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build Chrome (.zip)
+        run: npx wxt zip --browser chrome
+        env:
+          # Используем production env-файлы (.env.production)
+          NODE_ENV: production
+
+      - name: Build Firefox (.zip + sources)
+        run: npx wxt zip --browser firefox
+        env:
+          NODE_ENV: production
+
+      - name: List artifacts
+        run: ls -la .output/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: v${{ steps.version.outputs.VERSION }}
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}
+          files: |
+            .output/*.zip

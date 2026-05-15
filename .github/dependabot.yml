@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # npm-зависимости расширения
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+    groups:
+      # Все patch+minor — в один PR; major приходят отдельно.
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Сами actions в .github/workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "ci"
