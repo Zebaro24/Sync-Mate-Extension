@@ -40,9 +40,21 @@ export default class ParseInfo {
         return info;
     }
 
-    // FIXME: When I change the translator, it is called twice
     setWatchInfo(callback: (target: HTMLElement) => void) {
         const observers: MutationObserver[] = [];
+        // Rezka при смене переводчика снимает active со старого элемента и ставит
+        // на новый в одной микрозадаче — без дебаунса колбэк улетает дважды.
+        let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+        let pendingTarget: HTMLElement | null = null;
+        const fire = (target: HTMLElement) => {
+            pendingTarget = target;
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                debounceTimer = null;
+                if (pendingTarget) callback(pendingTarget);
+                pendingTarget = null;
+            }, 50);
+        };
 
         const watch = (container: Node) => {
             const observed = new WeakMap();
@@ -59,7 +71,7 @@ export default class ParseInfo {
 
                     if (observed.get(target) !== isActive) {
                         observed.set(target, isActive);
-                        if (isActive) callback(target);
+                        if (isActive) fire(target);
                     }
                 });
             });
@@ -75,6 +87,9 @@ export default class ParseInfo {
             ].filter(Boolean) as HTMLElement[]
         ).forEach(watch);
 
-        return () => observers.forEach((obs) => obs.disconnect());
+        return () => {
+            observers.forEach((obs) => obs.disconnect());
+            if (debounceTimer) clearTimeout(debounceTimer);
+        };
     }
 }

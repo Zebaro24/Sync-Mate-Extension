@@ -6,7 +6,9 @@ import { pickLocators } from "@/locators";
 
 // noinspection JSUnusedGlobalSymbols
 export default defineContentScript({
-    matches: ["https://www.youtube.com/watch*", "https://rezka.ag/*.html"],
+    // YouTube пока не поддерживается (нет реализации locators). Возвращать
+    // matches на YT нужно одновременно с реализацией YouTubeLocators.
+    matches: ["https://rezka.ag/*.html"],
     async main() {
         console.log("Content running...");
 

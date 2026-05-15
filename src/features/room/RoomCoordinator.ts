@@ -1,4 +1,5 @@
-import { BrowserMessageTypes, WSMessageTypes } from "./model/messageTypes";
+import { BrowserMessageTypes } from "@/shared/constants/message-types";
+import { WSMessageTypes } from "./model/messageTypes";
 import type WebSocketClient from "./sockets/WebSocketClient";
 import type RoomService from "./services/RoomService";
 import type ParseInfo from "./utills/ParseInfo";
@@ -7,6 +8,7 @@ import type PlayerCoordinator from "@/features/player/PlayerCoordinator";
 
 import { sendMessage } from "@/shared/messaging";
 import { getItem } from "@/shared/storage";
+import { API_URL } from "@/shared/constants/api";
 
 import type OverlayLoader from "@/ui/components/OverlayLoader";
 import type InfoPanel from "@/ui/components/InfoPanel";
@@ -60,13 +62,13 @@ export default class RoomCoordinator {
 
     private async createRoom() {
         try {
-            // TODO: Add name for create room
+            const userName = (await getItem("name")) || "Guest";
             const { room_id: roomId, link } = await this.service.createRoom(
-                "Name",
+                `${userName}'s room`,
                 window.location.href,
             );
             navigator.clipboard
-                .writeText(import.meta.env.WXT_API_URL + link)
+                .writeText(new URL(link, API_URL).href)
                 .then(() => console.log("Room link copied to clipboard"));
             console.log("Room created:", roomId);
             await sendMessage({
@@ -82,7 +84,15 @@ export default class RoomCoordinator {
 
     private async connect(roomId: string) {
         const name = (await getItem("name")) || "Guest";
-        const connected = await this.socket.connect(roomId, name);
+
+        let connected = false;
+        try {
+            connected = await this.socket.connect(roomId, name);
+        } catch (e) {
+            // Без try/catch таймаут/ошибка WS превращалась в unhandled promise rejection.
+            console.error("WS connect failed:", e);
+        }
+
         if (!connected) {
             this.ui.statusBox.setText("Error connecting");
             this.ui.statusBox.onClick(() => {
@@ -131,6 +141,15 @@ export default class RoomCoordinator {
                 break;
             case WSMessageTypes.REMOVE_BLOCK_PAUSE:
                 this.playerCoordinator.setIsBlockPause(false);
+                break;
+            case WSMessageTypes.SET_VIDEO:
+                if (
+                    typeof data.video_url === "string" &&
+                    data.video_url !== window.location.href
+                ) {
+                    console.log("Room set_video → navigating:", data.video_url);
+                    window.location.href = data.video_url;
+                }
                 break;
         }
     }

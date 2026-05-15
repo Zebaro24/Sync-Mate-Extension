@@ -1,7 +1,8 @@
-const API_URL = import.meta.env.WXT_API_URL;
-const REZKA_URL = import.meta.env.WXT_REZKA_URL;
+import { API_URL } from "@/shared/constants/api";
 
-export const parseUrls = [API_URL + "/rooms/*", REZKA_URL + "/*"];
+const REZKA_URL = import.meta.env.WXT_REZKA_URL as string;
+
+export const parseUrls = [API_URL + "/*", REZKA_URL + "/*"];
 
 export function parseUrl(text_url: string) {
     const url = new URL(text_url);

@@ -1,7 +1,6 @@
-import { BrowserMessageTypes } from "@/features/room/model/messageTypes";
+import { BrowserMessageTypes } from "@/shared/constants/message-types";
 import type { Browser } from "#imports";
 import { browser } from "#imports";
-import Promise from "lie";
 
 export { BrowserMessageTypes };
 

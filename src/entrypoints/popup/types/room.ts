@@ -1,13 +1,5 @@
-export interface RoomInfo {
-    name: string;
-    users: User[];
-}
-
-export interface User {
-    name: string;
-    downloadTime: string;
-    translator: string;
-    episode?: string;
-    synchronized: boolean;
-    isMe: boolean;
-}
+// Moved to @/features/room/types/view-models
+export type {
+    UserViewModel as User,
+    RoomViewModel as RoomInfo,
+} from "@/features/room/types/view-models";

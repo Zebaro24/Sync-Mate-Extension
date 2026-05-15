@@ -1,3 +1,16 @@
+// Ключевые кадры для спиннера — на странице Rezka может не быть подходящих
+// @keyframes spin, поэтому добавляем свои с уникальным именем.
+const SPIN_KEYFRAMES_ID = "sync-mate-spin-keyframes";
+const SPIN_ANIMATION_NAME = "sync-mate-spin";
+
+function ensureSpinKeyframes() {
+    if (document.getElementById(SPIN_KEYFRAMES_ID)) return;
+    const style = document.createElement("style");
+    style.id = SPIN_KEYFRAMES_ID;
+    style.textContent = `@keyframes ${SPIN_ANIMATION_NAME} { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+    document.head.appendChild(style);
+}
+
 export default class OverlayLoader {
     private overlay!: HTMLDivElement;
     private wrapperLoader!: HTMLDivElement;
@@ -18,6 +31,7 @@ export default class OverlayLoader {
         this.playerPlayBtn = playerPlayBtn;
         this.playerControlTimeline = playerControlTimeline;
 
+        ensureSpinKeyframes();
         this.setUpOverlayLoader();
     }
 
@@ -43,7 +57,7 @@ export default class OverlayLoader {
         this.loader.style.borderTop = "10px solid rgba(33, 30, 59, 0.7)";
         this.loader.style.borderBottom = "10px solid rgba(33, 30, 59, 0.7)";
         this.loader.style.borderRadius = "50%";
-        this.loader.style.animation = "spin 1s linear infinite";
+        this.loader.style.animation = `${SPIN_ANIMATION_NAME} 1s linear infinite`;
 
         this.wrapperLoader.appendChild(this.loader);
     }

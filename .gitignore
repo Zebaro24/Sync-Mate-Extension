@@ -145,4 +145,8 @@ vite.config.ts.timestamp-*
 stats.html
 stats-*.json
 .wxt
+.profiles
 web-ext.config.ts
+
+# Claude Code (локальные настройки агента — не для репозитория)
+.claude/

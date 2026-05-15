@@ -1,8 +1,4 @@
-export enum BrowserMessageTypes {
-    GET_ROOM,
-    SET_ROOM,
-    ADD_TO_ROOM,
-}
+export { BrowserMessageTypes } from "@/shared/constants/message-types";
 
 export enum WSMessageTypes {
     CONNECT = "connect",
@@ -10,5 +6,8 @@ export enum WSMessageTypes {
     PLAY = "play",
     PAUSE = "pause",
     SEEK = "seek",
+    STATUS = "status",
+    LOAD = "load",
+    SET_VIDEO = "set_video",
     REMOVE_BLOCK_PAUSE = "remove_block_pause",
 }

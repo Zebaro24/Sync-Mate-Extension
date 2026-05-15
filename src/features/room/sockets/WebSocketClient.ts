@@ -1,29 +1,40 @@
 import { WSMessageTypes } from "../model/messageTypes";
 import { setItem } from "@/shared/storage";
-import Promise from "lie";
 
 type WSMessage<T extends WSMessageTypes = WSMessageTypes> = {
     type: T;
     [key: string]: any;
 };
 
-const WS_URL = import.meta.env.WXT_WS_URL;
+import { WS_URL } from "@/shared/constants/api";
 
 export default class WebSocketClient {
     private ws: WebSocket | null = null;
 
-    async connect(roomId: string, name: string) {
+    async connect(roomId: string, name: string): Promise<boolean> {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             console.warn("WS is already connected");
             return true;
         }
-        return new Promise((resolve, reject) => {
+        return new Promise<boolean>((resolve) => {
             this.ws = new WebSocket(`${WS_URL}/${roomId}`);
 
-            const timeout = setTimeout(
-                () => reject(new Error("WS connection timeout ❌")),
-                5000,
-            );
+            let settled = false;
+            const finish = (ok: boolean) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timeout);
+                removeAuthMessageHandler();
+                removeCloseHandler();
+                this.ws?.removeEventListener("error", authErrorHandler);
+                resolve(ok);
+            };
+
+            const timeout = setTimeout(() => {
+                console.warn("WS connection timeout ❌");
+                this.ws?.close();
+                finish(false);
+            }, 5000);
 
             this.ws.addEventListener("open", () => {
                 console.log("WS connected ✅");
@@ -33,24 +44,19 @@ export default class WebSocketClient {
             const removeAuthMessageHandler = this.onMessage((data) => {
                 if (data.type === "connect") {
                     setItem("id", data["id"]);
-                    clearTimeout(timeout);
                     console.log("WS authentication completed ✅");
-                    removeAuthMessageHandler();
-                    resolve(true);
+                    finish(true);
                 }
             });
 
             const removeCloseHandler = this.onClose(() => {
-                clearTimeout(timeout);
                 console.log("WS unable to connect ❌");
-                resolve(false);
-                removeCloseHandler();
+                finish(false);
             });
 
             const authErrorHandler = (err: Event) => {
-                clearTimeout(timeout);
-                this.ws?.removeEventListener("error", authErrorHandler);
-                reject(err);
+                console.error("WS error during connect:", err);
+                finish(false);
             };
             this.ws.addEventListener("error", authErrorHandler);
         });
