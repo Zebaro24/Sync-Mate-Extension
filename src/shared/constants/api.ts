@@ -1,3 +1,7 @@
+import { createLogger } from "@/shared/logger";
+
+const log = createLogger("Config");
+
 // Константа: домен видеохостинга. Не конфигурируется через env — её нет смысла менять.
 export const REZKA_URL = "https://rezka.ag";
 
@@ -10,9 +14,7 @@ const BACKEND_URL = ((import.meta.env.WXT_BACKEND_URL as string) || "").replace(
 
 if (!BACKEND_URL) {
     // Видно сразу в DevTools, чтобы не искать молча сломанные запросы.
-    console.error(
-        "[Sync-Mate] WXT_BACKEND_URL is not set — API/WS calls will fail.",
-    );
+    log.error("WXT_BACKEND_URL is not set — API/WS calls will fail.");
 }
 
 export const API_URL = `${BACKEND_URL}/api`;

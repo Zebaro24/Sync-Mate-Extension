@@ -7,6 +7,9 @@ type WSMessage<T extends WSMessageTypes = WSMessageTypes> = {
 };
 
 import { WS_URL } from "@/shared/constants/api";
+import { createLogger } from "@/shared/logger";
+
+const log = createLogger("WS");
 
 export default class WebSocketClient {
     private ws: WebSocket | null = null;
@@ -19,9 +22,10 @@ export default class WebSocketClient {
 
     async connect(roomId: string, name: string): Promise<boolean> {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            console.warn("WS is already connected");
+            log.warn("already connected");
             return true;
         }
+        log.debug("connecting", { roomId, name });
         return new Promise<boolean>((resolve) => {
             this.ws = new WebSocket(`${WS_URL}/${roomId}`);
 
@@ -37,13 +41,13 @@ export default class WebSocketClient {
             };
 
             const timeout = setTimeout(() => {
-                console.warn("WS connection timeout ❌");
+                log.warn("connection timeout ❌");
                 this.ws?.close();
                 finish(false);
             }, 5000);
 
             this.ws.addEventListener("open", () => {
-                console.log("WS connected ✅");
+                log.debug("socket open ✅ — sending connect");
                 this.send({ type: WSMessageTypes.CONNECT, name: name });
                 this.startKeepAlive();
             });
@@ -55,18 +59,18 @@ export default class WebSocketClient {
                 if (data.type === "connect") {
                     // id привязан к комнате — иначе мультитаб перетирает чужой
                     setItem("id:" + roomId, data["id"]);
-                    console.log("WS authentication completed ✅");
+                    log.debug("auth completed ✅ id=", data["id"]);
                     finish(true);
                 }
             });
 
             const removeCloseHandler = this.onClose(() => {
-                console.log("WS unable to connect ❌");
+                log.warn("unable to connect ❌");
                 finish(false);
             });
 
             const authErrorHandler = (err: Event) => {
-                console.error("WS error during connect:", err);
+                log.error("error during connect:", err);
                 finish(false);
             };
             this.ws.addEventListener("error", authErrorHandler);
@@ -76,10 +80,11 @@ export default class WebSocketClient {
     disconnect() {
         this.stopKeepAlive();
         if (this.ws) {
+            log.debug("disconnect requested");
             try {
                 this.ws.close();
             } catch (err) {
-                console.error("Ошибка при закрытии WebSocket:", err);
+                log.error("ошибка при закрытии:", err);
             } finally {
                 this.ws = null;
             }
@@ -106,7 +111,12 @@ export default class WebSocketClient {
     }
 
     send<T extends WSMessageTypes>(obj: WSMessage<T>) {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            // Отправка в закрытый сокет — частый источник «потерянных» действий.
+            log.debug("→ send skipped (socket not open)", obj?.type);
+            return;
+        }
+        log.debug("→ send", obj?.type, obj);
         this.ws.send(JSON.stringify(obj));
     }
 
@@ -118,9 +128,10 @@ export default class WebSocketClient {
         const listener = (evt: MessageEvent) => {
             try {
                 const data = JSON.parse(evt.data);
+                log.debug("← recv", data?.type, data);
                 handler(data);
             } catch (e) {
-                console.error("Bad WS message", e);
+                log.error("bad WS message (not JSON)", e, evt.data);
             }
         };
 
@@ -135,9 +146,12 @@ export default class WebSocketClient {
         // Замыкаем текущий сокет: к моменту отписки this.ws уже может быть null.
         const ws = this.ws;
         const listener = (evt: CloseEvent) => {
-            console.log("Disconnected ❌");
-            console.log("Code:", evt.code);
-            console.log("Reason:", evt.reason);
+            log.debug(
+                "disconnected ❌ code=",
+                evt.code,
+                "reason=",
+                evt.reason || "(empty)",
+            );
             handler(evt);
         };
 

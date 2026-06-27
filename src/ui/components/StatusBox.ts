@@ -1,4 +1,7 @@
 import { browser } from "#imports";
+import { createLogger } from "@/shared/logger";
+
+const log = createLogger("UI");
 
 export default class StatusBox {
     private ratingTable: HTMLElement;
@@ -68,20 +71,25 @@ export default class StatusBox {
         box.appendChild(img);
         box.appendChild(this.textEl);
 
-        box.addEventListener("click", (event) => this._onClick?.(event));
+        box.addEventListener("click", (event) => {
+            log.debug("status box clicked");
+            this._onClick?.(event);
+        });
         return box;
     }
 
     onClick(fn: (event: MouseEvent) => void) {
+        log.debug("onClick: зарегистрирован обработчик клика");
         this._onClick = fn;
     }
 
     setText(text: string) {
+        log.debug("setText:", text);
         this.textEl.textContent = text;
     }
 
     togglePopup() {
-        console.log(this.container);
+        log.debug("togglePopup", this.container);
         if (!this.popup) {
             this.popup = document.createElement("div");
             this.popup.className = "my-popup";

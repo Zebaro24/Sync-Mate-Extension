@@ -11,6 +11,7 @@ import { sendMessage } from "@/shared/messaging";
 import { getItem } from "@/shared/storage";
 import { API_URL } from "@/shared/constants/api";
 import { waitForElement } from "@/shared/utils/waitForElement";
+import { createLogger } from "@/shared/logger";
 
 import type InfoPanel from "@/ui/components/InfoPanel";
 import type StatusBox from "@/ui/components/StatusBox";
@@ -20,6 +21,8 @@ interface UI {
     statusBox: StatusBox;
     parseInfo: ParseInfo;
 }
+
+const log = createLogger("Room");
 
 export default class RoomCoordinator {
     private socket: WebSocketClient;
@@ -50,9 +53,10 @@ export default class RoomCoordinator {
 
     async init() {
         const roomId = await this.getStoredRoomId();
-        console.log("RoomId:", roomId);
+        log.debug("init: stored roomId =", roomId);
 
         if (!roomId) {
+            log.debug("init: нет сохранённой комнаты → показываем Create room");
             this.showCreateRoom();
             return;
         }
@@ -69,11 +73,14 @@ export default class RoomCoordinator {
             const status = (e as { response?: { status?: number } })?.response
                 ?.status;
             if (status === 404) {
-                console.warn("Sync-Mate: комната не найдена — нужна новая");
+                log.warn("комната не найдена (404) — нужна новая");
                 this.showCreateRoom();
                 return;
             }
-            console.warn("Sync-Mate: не удалось проверить комнату", e);
+            log.warn(
+                "не удалось проверить комнату (трактуем как временный сбой)",
+                e,
+            );
         }
 
         // Комната жива, но её видео не совпадает с текущей страницей — значит мы
@@ -85,12 +92,13 @@ export default class RoomCoordinator {
             this.isRezkaUrl(location.href) &&
             !this.isSameVideo(room.video_url, location.href);
 
+        log.debug("init: shouldSetVideo =", shouldSetVideo, {
+            roomVideo: room?.video_url,
+            here: location.href,
+        });
         const connected = await this.connect(roomId);
         if (connected && shouldSetVideo) {
-            console.log(
-                "Sync-Mate: переводим комнату на новое видео",
-                location.href,
-            );
+            log.debug("переводим комнату на новое видео", location.href);
             this.socket.send({
                 type: WSMessageTypes.SET_VIDEO,
                 video_url: location.href,
@@ -111,7 +119,7 @@ export default class RoomCoordinator {
                     })) ?? {};
                 return roomId ?? null;
             } catch (e) {
-                console.warn("Sync-Mate: GET_ROOM не ответил", e);
+                log.warn("GET_ROOM не ответил (SW спит?), попытка", attempt, e);
                 if (attempt === 0) {
                     await new Promise<void>((resolve) =>
                         setTimeout(resolve, 200),
@@ -186,10 +194,10 @@ export default class RoomCoordinator {
                 );
                 this.ui.statusBox.setText("Скопировано");
             } catch (e) {
-                console.warn("Sync-Mate: не удалось скопировать ссылку", e);
+                log.warn("не удалось скопировать ссылку в буфер", e);
                 this.ui.statusBox.setText("Скопируйте ссылку вручную");
             }
-            console.log("Room created:", roomId);
+            log.debug("комната создана:", roomId);
             await sendMessage({
                 type: BrowserMessageTypes.ADD_TO_ROOM,
                 room: { roomId },
@@ -197,7 +205,7 @@ export default class RoomCoordinator {
             await this.connect(roomId);
         } catch (e) {
             this.ui.statusBox.setText("Error creating room");
-            console.error(e);
+            log.error("ошибка создания комнаты", e);
         }
     }
 
@@ -216,13 +224,15 @@ export default class RoomCoordinator {
             this.name = name;
         }
 
+        log.debug("connect()", { roomId, name, isReconnect });
         let connected = false;
         try {
             connected = await this.socket.connect(roomId, name);
         } catch (e) {
             // Без try/catch таймаут/ошибка WS превращалась в unhandled promise rejection.
-            console.error("WS connect failed:", e);
+            log.error("WS connect failed:", e);
         }
+        log.debug("connect() result =", connected);
 
         if (!connected) {
             // При реконнекте статусом управляет цикл переподключения.
@@ -272,6 +282,7 @@ export default class RoomCoordinator {
         [key: string]: any;
         type: WSMessageTypes;
     }) {
+        log.debug("dispatch", data.type, data);
         switch (data.type) {
             case WSMessageTypes.INFO:
                 this.ui.infoPanel.updateInformation(
@@ -298,23 +309,37 @@ export default class RoomCoordinator {
                     this.isRezkaUrl(data.video_url) &&
                     data.video_url !== location.href
                 ) {
-                    console.log("Room set_video → navigating:", data.video_url);
+                    log.debug("set_video → navigating:", data.video_url);
                     window.location.href = data.video_url;
+                } else {
+                    log.debug(
+                        "set_video проигнорирован (невалидный URL или тот же)",
+                        data.video_url,
+                    );
                 }
                 break;
             }
+            default:
+                log.warn("неизвестный тип WS-сообщения:", data.type);
         }
     }
 
     private handleWsClose(evt: CloseEvent) {
         // Намеренное закрытие (dispose/выход пользователя) — реконнект не нужен.
-        if (this.intentionalClose) return;
+        if (this.intentionalClose) {
+            log.debug("close: намеренное закрытие — реконнект не нужен");
+            return;
+        }
 
+        log.warn("close (аварийное) code=", evt.code, "→ обработка реконнекта");
         this.playerCoordinator.disable();
         this.clearSubscriptions();
 
         // 4000 — комната не найдена / сервер перезапущен: реконнектиться некуда.
         if (evt.code === 4000) {
+            log.warn(
+                "close 4000: комната закрыта/сервер перезапущен — реконнекта нет",
+            );
             this.ui.statusBox.setText("Комната закрыта");
             this.ui.statusBox.onClick(this.createRoom.bind(this));
             return;
@@ -329,14 +354,17 @@ export default class RoomCoordinator {
         if (this.intentionalClose || !this.roomId) return;
         if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
 
+        log.debug("реконнект запланирован через", this.reconnectDelay, "мс");
         this.reconnectTimer = setTimeout(async () => {
             this.reconnectTimer = null;
             const roomId = this.roomId;
             if (this.intentionalClose || !roomId) return;
 
+            log.debug("реконнект: попытка к", roomId);
             const ok = await this.connect(roomId, true);
             if (ok) {
                 // Переподключились — просим комнату пересинхронизировать позицию.
+                log.debug("реконнект успешен → load для пересинхронизации");
                 this.reconnectDelay = 1000;
                 this.socket.send({
                     type: WSMessageTypes.LOAD,
@@ -345,6 +373,10 @@ export default class RoomCoordinator {
             } else {
                 // Не вышло — следующая попытка с увеличенной задержкой (cap 30s).
                 this.reconnectDelay = Math.min(this.reconnectDelay * 2, 30000);
+                log.warn(
+                    "реконнект не удался → новая задержка",
+                    this.reconnectDelay,
+                );
                 this.scheduleReconnect();
             }
         }, this.reconnectDelay);
@@ -357,6 +389,7 @@ export default class RoomCoordinator {
 
     private handleVisibilityChange() {
         if (document.visibilityState !== "visible") return;
+        log.debug("вкладка снова видима → load для пересинхронизации");
         this.socket.send({
             type: WSMessageTypes.LOAD,
             current_time: this.getCurrentTime(),
@@ -370,13 +403,14 @@ export default class RoomCoordinator {
     private async handleInfo() {
         // При смене эпизода/перевода Rezka заменяет <video> новым элементом.
         // Ждём его появления, иначе переинициализируем плеер на старый/пустой узел.
+        log.debug("смена эпизода/перевода — ждём новый <video>");
         const v = await waitForElement("video");
         if (!v) {
-            console.warn("Sync-Mate: video не появился после смены");
+            log.warn("video не появился после смены эпизода/перевода");
             return;
         }
 
-        console.log("Update player");
+        log.debug("новый <video> найден → переинициализация плеера");
         this.playerCoordinator.updatePlayer();
         this.playerCoordinator.enable();
 

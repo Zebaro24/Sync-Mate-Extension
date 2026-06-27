@@ -1,6 +1,9 @@
 // FIXME: Add BaseLocators
 import type RezkaLocators from "@/locators/RezkaLocators";
 import { WSMessageTypes } from "../model/messageTypes";
+import { createLogger } from "@/shared/logger";
+
+const log = createLogger("Parse");
 
 export default class ParseInfo {
     private locators: RezkaLocators;
@@ -38,7 +41,7 @@ export default class ParseInfo {
             ...seriesInfo,
             url: location.href,
         };
-        console.log(info);
+        log.debug("parse →", info);
         return info;
     }
 
@@ -53,7 +56,12 @@ export default class ParseInfo {
             if (debounceTimer) clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
                 debounceTimer = null;
-                if (pendingTarget) callback(pendingTarget);
+                if (pendingTarget) {
+                    // Логируем после debounce — на каждую реальную смену
+                    // переводчика/эпизода ровно один раз.
+                    log.debug("watch-info изменился (переводчик/эпизод)");
+                    callback(pendingTarget);
+                }
                 pendingTarget = null;
             }, 50);
         };

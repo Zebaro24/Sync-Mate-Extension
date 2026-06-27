@@ -1,6 +1,9 @@
 import BufferedTime from "@/features/player/utills/BufferedTime";
 import type OverlayLoader from "@/ui/components/OverlayLoader";
 import { roundTime } from "@/shared/utils/time";
+import { createLogger } from "@/shared/logger";
+
+const log = createLogger("Player");
 
 export interface SendStatusCallback {
     (arg?: {
@@ -47,16 +50,32 @@ export class ControlPlayer {
         this.overlayLoader = overlayLoader;
     }
 
+    // Снимок состояния/флагов — печатаем на ключевых решениях, чтобы видеть,
+    // почему действие применилось или было погашено как «эхо».
+    private snapshot() {
+        return {
+            t: roundTime(this.player.currentTime),
+            paused: this.player.paused,
+            blockPause: this.isBlockPause,
+            manualPlay: this.isManualPlay,
+            manualPause: this.isManualPause,
+            manualSeek: this.isManualSeek,
+            skipWaiting: this.isSkipWaiting,
+            loadedMeta: this.isLoadedMetaData,
+            firstStart: this.isFirstStart,
+        };
+    }
+
     // region <--- Handlers for listeners --->
     onLoadedMetadata = () => {
-        console.log("Медиа загружено, длительность:", this.player.duration);
+        log.debug("Медиа загружено, длительность:", this.player.duration);
         this.isLoadedMetaData = true;
     };
 
     onUserPlay = () => {
-        console.log("Запрос на play");
+        log.debug("Запрос на play", this.snapshot());
         if (this.isManualPlay) {
-            console.log("Manual play");
+            log.debug("Manual play");
             this.isManualPlay = false;
             return;
         }
@@ -64,24 +83,24 @@ export class ControlPlayer {
             this.isSkipWaiting = true;
         }
         if (!this.isLoadedMetaData) {
-            console.log("Skip first play");
+            log.debug("Skip first play");
             return;
         }
         if (this.isBlockPause) {
             this.pause();
-            console.log("Play blocked by pause");
+            log.debug("Play blocked by pause");
             return;
         }
-        console.log("Play применен");
+        log.debug("Play применен");
         this.pause();
         this.setIsBlockPause(true);
         this.sendStatus("play");
     };
 
     onUserPause = () => {
-        console.log("Запрос на pause");
+        log.debug("Запрос на pause", this.snapshot());
         if (this.isManualPause) {
-            console.log("Manual pause");
+            log.debug("Manual pause");
             this.isManualPause = false;
             return;
         }
@@ -90,7 +109,7 @@ export class ControlPlayer {
             this.isFirstStart = false;
             return;
         }
-        console.log("Pause применена");
+        log.debug("Pause применена");
         if (this.isBlockPause) return;
         this.setIsBlockPause(true);
         this.sendStatus("pause");
@@ -101,7 +120,11 @@ export class ControlPlayer {
     };
 
     onSeeking = () => {
-        console.log("Запрос на seeking", this.player.currentTime);
+        log.debug(
+            "Запрос на seeking",
+            this.player.currentTime,
+            this.snapshot(),
+        );
         if (this.isManualSeek) {
             this.isManualSeek = false;
             return;
@@ -120,11 +143,11 @@ export class ControlPlayer {
             this.player.currentTime < this.currentTime + 0.3 &&
             this.player.currentTime !== 0
         ) {
-            console.log("Ложное перематывание");
+            log.debug("Ложное перематывание");
             return;
         }
 
-        console.log("Seeking применен");
+        log.debug("Seeking применен");
         // Реальная перемотка: если буфера в новой точке нет — пропускаем ближайший waiting
         if (this.bufferedTime.getCurrDownTime(this.player.currentTime) === 0) {
             this.isSkipWaiting = true;
@@ -147,7 +170,7 @@ export class ControlPlayer {
         }
         if (this.bufferedTime.getCurrDownTime(this.player.currentTime) > 0)
             return;
-        console.log("Waiting");
+        log.debug("Waiting (буфера нет → пауза)", this.snapshot());
         this.pause();
         this.sendStatus("play");
         this.setIsBlockPause(true);
@@ -157,6 +180,7 @@ export class ControlPlayer {
     // region <--- Actions in player --->
     setIsBlockPause(isBlock: boolean) {
         if (this.isBlockPause === isBlock) return;
+        log.debug("setIsBlockPause →", isBlock);
         this.isBlockPause = isBlock;
         if (isBlock) {
             this.overlayLoader.show();
@@ -166,7 +190,7 @@ export class ControlPlayer {
     }
 
     play() {
-        console.log("Запуск функции play");
+        log.debug("Запуск функции play");
         // Метим ручной play только если плеер реально на паузе
         if (this.player.paused) {
             this.isManualPlay = true;
@@ -180,7 +204,7 @@ export class ControlPlayer {
 
     pause() {
         if (!this.player.paused) {
-            console.log("Запуск функции pause");
+            log.debug("Запуск функции pause");
             this.isManualPause = true;
             this.player.pause();
         }
@@ -189,7 +213,7 @@ export class ControlPlayer {
     }
 
     seek(time: number) {
-        console.log("Запуск функции seek", time);
+        log.debug("Запуск функции seek", time);
         if (!this.isLoadedMetaData) {
             this.player.play();
             this.isFirstStart = true;

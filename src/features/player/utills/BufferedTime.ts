@@ -1,3 +1,7 @@
+import { createLogger } from "@/shared/logger";
+
+const log = createLogger("Buffer");
+
 export default class BufferedTime {
     private ranges: { start: number; end: number }[] = [];
 
@@ -18,11 +22,16 @@ export default class BufferedTime {
 
     getCurrDownTime(currentTime: number): number {
         const currEnd = this.getCurrEnd(currentTime);
-        return currEnd - currentTime;
+        const downTime = currEnd - currentTime;
+        // Вызывается с троттлингом (~1/с) и на действиях — не горячий путь.
+        log.debug("getCurrDownTime", currentTime, "→", downTime);
+        return downTime;
     }
 
     update(buffered: TimeRanges): void {
-        console.log(this.ranges);
+        // update() дёргается на каждый progress — логируем только когда меняется
+        // число буферных сегментов, чтобы не спамить на каждый тик загрузки.
+        const prevCount = this.ranges.length;
         this.ranges = [];
         for (let i = 0; i < buffered.length; i++) {
             let bufferedStart = buffered.start(i);
@@ -31,6 +40,9 @@ export default class BufferedTime {
                 start: bufferedStart,
                 end: buffered.end(i),
             });
+        }
+        if (this.ranges.length !== prevCount) {
+            log.debug("buffer обновлён, сегментов:", this.ranges.length);
         }
     }
 }

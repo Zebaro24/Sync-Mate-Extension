@@ -1,4 +1,7 @@
 import type { ControlPlayer } from "./ControlPlayer";
+import { createLogger } from "@/shared/logger";
+
+const log = createLogger("Player");
 
 export default class EventListeners {
     private player: HTMLVideoElement;
@@ -24,13 +27,30 @@ export default class EventListeners {
         this.player = player;
         this.controller = controller;
 
-        this.hLoaded = () => this.controller.onLoadedMetadata();
-        this.hPlay = () => this.controller.onUserPlay();
-        this.hPause = () => this.controller.onUserPause();
+        // timeupdate/progress срабатывают десятки раз в секунду — их НЕ логируем,
+        // иначе консоль захлёбывается. Остальные события логируем на каждом fire.
+        this.hLoaded = () => {
+            log.debug("event: loadedmetadata");
+            this.controller.onLoadedMetadata();
+        };
+        this.hPlay = () => {
+            log.debug("event: play");
+            this.controller.onUserPlay();
+        };
+        this.hPause = () => {
+            log.debug("event: pause");
+            this.controller.onUserPause();
+        };
         this.hTimeUpdate = () => this.controller.onTimeUpdate();
-        this.hSeeking = () => this.controller.onSeeking();
+        this.hSeeking = () => {
+            log.debug("event: seeking");
+            this.controller.onSeeking();
+        };
         this.hProgress = () => this.controller.onProgress();
-        this.hWaiting = () => this.controller.onWaiting();
+        this.hWaiting = () => {
+            log.debug("event: waiting");
+            this.controller.onWaiting();
+        };
     }
 
     onEventListener<K extends keyof HTMLMediaElementEventMap>(
@@ -58,12 +78,15 @@ export default class EventListeners {
         this.onEventListener("progress", this.hProgress);
         this.onEventListener("waiting", this.hWaiting);
 
-        console.log("Player event listeners enabled");
+        log.debug(
+            "навешены слушатели: loadedmetadata, play, pause, timeupdate, seeking, progress, waiting",
+        );
     }
 
     disable() {
         if (!this.enabled) return;
         this.enabled = false;
+        log.debug("сняты слушатели плеера", this.unsub.length);
         this.unsub.forEach((fn) => fn?.());
         this.unsub = [];
     }

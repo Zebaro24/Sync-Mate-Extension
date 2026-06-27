@@ -2,6 +2,9 @@ import type { SendStatusCallback } from "./services/ControlPlayer";
 import { ControlPlayer } from "./services/ControlPlayer";
 import type OverlayLoader from "@/ui/components/OverlayLoader";
 import EventListeners from "./services/EventListeners";
+import { createLogger } from "@/shared/logger";
+
+const log = createLogger("Player");
 
 interface UI {
     overlayLoader: OverlayLoader;
@@ -44,6 +47,7 @@ export default class PlayerCoordinator {
     }
 
     disable() {
+        log.debug("disable: снимаем слушатели, оверлей и блок Space");
         this.eventListener.disable();
         // При teardown/дисконнекте снимаем оверлей и блок Space — иначе спиннер
         // и перехват пробела остаются висеть после закрытия комнаты.
@@ -51,11 +55,13 @@ export default class PlayerCoordinator {
     }
 
     onStatus(callback: SendStatusCallback) {
+        log.debug("onStatus: подписка на broadcast статуса плеера");
         this.statusCallback = callback;
         return this.controlPlayer.onStatus(callback);
     }
 
     updatePlayer() {
+        log.debug("updatePlayer: пересобираем сервисы на новый <video>");
         try {
             // Сначала пробуем собрать сервисы на новый <video>. Если он ещё не
             // готов (null), конструктор бросит — тогда оставляем старые
@@ -76,8 +82,9 @@ export default class PlayerCoordinator {
 
             if (this.statusCallback)
                 this.controlPlayer.onStatus(this.statusCallback);
+            log.debug("updatePlayer: переключились на новый <video>");
         } catch (e) {
-            console.error("Sync-Mate updatePlayer failed:", e);
+            log.error("Sync-Mate updatePlayer failed:", e);
         }
     }
 }

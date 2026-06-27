@@ -4,6 +4,9 @@ import { BrowserMessageTypes } from "@/shared/constants/message-types";
 import { parseUrls, parseUrl } from "@/shared/utils/parseUrl";
 import { getItem, setItem } from "@/shared/storage";
 import { generateNickname } from "@/shared/utils/nickname";
+import { createLogger } from "@/shared/logger";
+
+const log = createLogger("BG");
 
 type RoomState = Record<string, unknown>;
 
@@ -28,7 +31,7 @@ function getRoomsStorage() {
     if (storage.session) return storage.session;
     if (!warnedSessionFallback) {
         warnedSessionFallback = true;
-        console.warn(
+        log.warn(
             "Sync-Mate: storage.session недоступен — используем storage.local",
         );
     }
@@ -75,18 +78,19 @@ function getOrCreateName(): Promise<string> {
 
 // noinspection JSUnusedGlobalSymbols
 export default defineBackground(() => {
-    console.log("Background running...");
+    log.debug("Background running...");
 
     // Гарантируем наличие ника при старте — атомарно, без гонки и двойной генерации.
-    getOrCreateName().then((name) => console.log("Nickname ready:", name));
+    getOrCreateName().then((name) => log.debug("Nickname ready:", name));
 
     onMessage(async (msg, sender) => {
         const tabId = msg.activeTabId ?? sender.tab?.id;
+        log.debug("IPC сообщение:", msg.type, "tab", tabId);
         if (!tabId) return { error: "No tab" };
         switch (msg.type) {
             case BrowserMessageTypes.GET_ROOM: {
                 const rooms = await loadRooms();
-                console.log("Message get room:", rooms[tabId]);
+                log.debug("Message get room:", rooms[tabId]);
                 return rooms[tabId];
             }
             case BrowserMessageTypes.SET_ROOM: {
@@ -96,15 +100,16 @@ export default defineBackground(() => {
                     await saveRooms(rooms);
                     return rooms[tabId];
                 });
-                console.log("Message set room:", room);
+                log.debug("Message set room:", room);
                 return { success: true };
             }
             case BrowserMessageTypes.ADD_TO_ROOM: {
                 const merged = await updateRoom(tabId, msg.room);
-                console.log("Message add to room:", merged);
+                log.debug("Message add to room:", merged);
                 return { success: true };
             }
             default:
+                log.warn("Неизвестное IPC сообщение:", msg.type);
                 return { error: "Unknown message" };
         }
     });
@@ -118,14 +123,15 @@ export default defineBackground(() => {
             try {
                 roomDetails = parseUrl(details.url);
             } catch (e) {
-                console.error("Failed to parse URL:", e);
+                log.error("Failed to parse URL:", e);
                 return;
             }
             if (!roomDetails) return;
 
+            log.debug("webRequest: сохраняем состояние комнаты для tab", tabId);
             // Fire-and-forget — webRequest listener должен возвращать синхронно.
             updateRoom(tabId, roomDetails).catch((e) =>
-                console.error("Failed to persist room state:", e),
+                log.error("Failed to persist room state:", e),
             );
             return undefined;
         },
@@ -137,6 +143,7 @@ export default defineBackground(() => {
         await withRoomsLock(async () => {
             const rooms = await loadRooms();
             if (rooms[tabId]) {
+                log.debug("tab закрыт — чистим комнату", tabId);
                 delete rooms[tabId];
                 await saveRooms(rooms);
             }

@@ -1,3 +1,7 @@
+import { createLogger } from "@/shared/logger";
+
+const log = createLogger("Locators");
+
 export default class BaseLocators {
     public player!: () => HTMLElement | null;
 
@@ -10,17 +14,23 @@ export default class BaseLocators {
     ): T extends true ? NodeListOf<HTMLElement> : HTMLElement {
         if (all) {
             const nodes = document.querySelectorAll<HTMLElement>(selector);
-            if (nodes.length === 0)
+            if (nodes.length === 0) {
+                log.warn(`miss (all): "${selector}"`);
                 throw new Error(
                     `[${this.constructor.name}] no elements found for selector "${selector}"`,
                 );
+            }
+            log.debug(`hit (all): "${selector}" ×${nodes.length}`);
             return nodes as any;
         } else {
             const el = document.querySelector<HTMLElement>(selector);
-            if (!el)
+            if (!el) {
+                log.warn(`miss: "${selector}"`);
                 throw new Error(
                     `[${this.constructor.name}] element not found for selector "${selector}"`,
                 );
+            }
+            log.debug(`hit: "${selector}"`);
             return el as any;
         }
     }
@@ -32,6 +42,16 @@ export default class BaseLocators {
         const query = all
             ? document.querySelectorAll.bind(document)
             : document.querySelector.bind(document);
-        return () => query(selector) as any;
+        return () => {
+            const result = query(selector) as any;
+            // Ленивые резолверы дёргаются на действиях/парсинге, а не в горячих
+            // циклах (хендлеры используют закэшированный this.player), поэтому
+            // умеренный лог hit/miss безопасен.
+            const found = all
+                ? (result as NodeListOf<HTMLElement>).length > 0
+                : result !== null;
+            log.debug(`lazy ${found ? "hit" : "miss"}: "${selector}"`);
+            return result;
+        };
     }
 }

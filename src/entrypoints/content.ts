@@ -4,6 +4,9 @@ import { initRoomFeatured } from "@/features/room";
 import { getItem } from "@/shared/storage";
 import { pickLocators } from "@/locators";
 import { waitForElement } from "@/shared/utils/waitForElement";
+import { createLogger } from "@/shared/logger";
+
+const log = createLogger("Content");
 
 // noinspection JSUnusedGlobalSymbols
 export default defineContentScript({
@@ -13,28 +16,35 @@ export default defineContentScript({
     matches: ["https://rezka.ag/*.html", "https://rezka.ag/*.html?*"],
     async main() {
         try {
-            console.log("Content running...");
+            log.debug("Content running...");
 
-            getItem("name").then((name) => console.log("Name:", name));
+            getItem("name").then((name) => log.debug("Name:", name));
 
             const locators = pickLocators(location.hostname);
-            if (!locators) return;
+            if (!locators) {
+                log.debug("locators не найдены для хоста", location.hostname);
+                return;
+            }
+            log.debug("locators выбраны для", location.hostname);
 
             // <video> на Rezka появляется асинхронно (его вставляет плеер).
             // Ждём элемент, иначе ControlPlayer/EventListeners упадут в
             // конструкторе. Если не дождались — не инициализируем плеер.
             const video = await waitForElement("video");
             if (!video) {
-                console.warn(
+                log.warn(
                     "Sync-Mate: видео не найдено, плеер не инициализирован",
                 );
                 return;
             }
+            log.debug("<video> найден, инициализируем плеер");
 
             const playerCoordinator = initPlayerFeatured(locators);
+            log.debug("плеер инициализирован, инициализируем комнату");
             await initRoomFeatured(locators, playerCoordinator);
+            log.debug("комната инициализирована");
         } catch (e) {
-            console.error("Sync-Mate init failed:", e);
+            log.error("Sync-Mate init failed:", e);
         }
     },
 });
