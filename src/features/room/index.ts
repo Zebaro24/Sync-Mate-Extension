@@ -1,7 +1,6 @@
 import RoomCoordinator from "./RoomCoordinator";
 
 import InfoPanel from "@/ui/components/InfoPanel";
-import OverlayLoader from "@/ui/components/OverlayLoader";
 import StatusBox from "@/ui/components/StatusBox";
 
 import WebSocketClient from "./sockets/WebSocketClient";
@@ -18,7 +17,6 @@ export async function initRoomFeatured(
     // FIXME: Add BaseLocators
     const ui = {
         infoPanel: new InfoPanel(locators as RezkaLocators),
-        overlayLoader: new OverlayLoader(locators),
         statusBox: new StatusBox(locators as RezkaLocators),
         parseInfo: new ParseInfo(locators as RezkaLocators),
     };

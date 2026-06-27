@@ -12,13 +12,11 @@ import { getItem } from "@/shared/storage";
 import { API_URL } from "@/shared/constants/api";
 import { waitForElement } from "@/shared/utils/waitForElement";
 
-import type OverlayLoader from "@/ui/components/OverlayLoader";
 import type InfoPanel from "@/ui/components/InfoPanel";
 import type StatusBox from "@/ui/components/StatusBox";
 
 interface UI {
     infoPanel: InfoPanel;
-    overlayLoader: OverlayLoader;
     statusBox: StatusBox;
     parseInfo: ParseInfo;
 }
