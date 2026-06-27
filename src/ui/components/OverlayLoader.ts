@@ -19,7 +19,7 @@ export default class OverlayLoader {
     private playerPlayBtn: HTMLElement;
     private playerControlTimeline: HTMLElement;
 
-    private handler!: (e: KeyboardEvent) => void;
+    private handler?: (e: KeyboardEvent) => void;
 
     constructor({
         playerPlayBtn,
@@ -75,6 +75,8 @@ export default class OverlayLoader {
     }
 
     hide() {
+        // Идемпотентно: remove() безопасен для неприсоединённых узлов, а
+        // unblockSpace() корректно отрабатывает даже если show() не вызывался.
         this.overlay.remove();
         this.wrapperLoader.remove();
 
@@ -85,6 +87,9 @@ export default class OverlayLoader {
     }
 
     private blockSpace() {
+        // Снимаем прежний слушатель, если show() вызвали повторно без hide(),
+        // иначе хендлеры накапливаются и пробел «залипает».
+        this.unblockSpace();
         this.handler = (e) => {
             if (e.code === "Space") {
                 e.preventDefault();
@@ -97,6 +102,9 @@ export default class OverlayLoader {
     private unblockSpace() {
         if (this.handler) {
             document.removeEventListener("keydown", this.handler, true);
+            // Сбрасываем ссылку — повторный hide() безопасен и не держит
+            // устаревший хендлер.
+            this.handler = undefined;
         }
     }
 }

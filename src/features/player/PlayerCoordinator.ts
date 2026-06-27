@@ -43,8 +43,11 @@ export default class PlayerCoordinator {
         return this.eventListener.enable.bind(this.eventListener);
     }
 
-    get disable() {
-        return this.eventListener.disable.bind(this.eventListener);
+    disable() {
+        this.eventListener.disable();
+        // При teardown/дисконнекте снимаем оверлей и блок Space — иначе спиннер
+        // и перехват пробела остаются висеть после закрытия комнаты.
+        this.ui.overlayLoader.hide();
     }
 
     onStatus(callback: SendStatusCallback) {
@@ -54,6 +57,9 @@ export default class PlayerCoordinator {
 
     updatePlayer() {
         this.eventListener.disable();
+        // Перед заменой плеера гасим старый оверлей и блок Space, чтобы они не
+        // остались висеть поверх нового плеера при смене серии/озвучки.
+        this.ui.overlayLoader.hide();
         this.controlPlayer = new ControlPlayer(this.ui);
         this.eventListener = new EventListeners(
             this.ui.getPlayer,

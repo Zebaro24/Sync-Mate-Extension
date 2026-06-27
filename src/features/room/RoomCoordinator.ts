@@ -142,6 +142,14 @@ export default class RoomCoordinator {
         this.unsub.push(this.socket.onMessage(this.handleWsMessage.bind(this)));
         this.unsub.push(this.socket.onClose(this.handleWsClose.bind(this)));
 
+        // Возврат на вкладку: фоновая вкладка могла отстать от комнаты —
+        // просим пересинхронизировать позицию.
+        const onVisibility = this.handleVisibilityChange.bind(this);
+        document.addEventListener("visibilitychange", onVisibility);
+        this.unsub.push(() =>
+            document.removeEventListener("visibilitychange", onVisibility),
+        );
+
         this.unsub.push(
             this.playerCoordinator.onStatus(this.handleStatus.bind(this)),
         );
@@ -248,6 +256,14 @@ export default class RoomCoordinator {
     private getCurrentTime(): number {
         const video = document.querySelector("video");
         return video ? video.currentTime : 0;
+    }
+
+    private handleVisibilityChange() {
+        if (document.visibilityState !== "visible") return;
+        this.socket.send({
+            type: WSMessageTypes.LOAD,
+            current_time: this.getCurrentTime(),
+        });
     }
 
     private handleStatus(data: any) {
