@@ -52,7 +52,7 @@ await initRoomFeatured(locators, playerCoordinator);
 
 ## WS-протокол
 
-Полный список — в `DOCUMENTATION.md` §2.5. Особенности фронта:
+Полный список — в `docs/websocket-protocol.md`. Особенности фронта:
 
 - `WebSocketClient.connect()` теперь возвращает чистый `Promise<boolean>` — никаких unhandled rejections при таймауте. Если когда-то снова станет `reject`-я, обязательно оберните `await socket.connect(...)` в try/catch в `RoomCoordinator`.
 - Имена сообщений → `src/features/room/model/messageTypes.ts::WSMessageTypes`. Любое новое — добавлять туда.

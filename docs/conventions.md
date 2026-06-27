@@ -361,7 +361,7 @@ try {
 
 ## 11. Контракт с бэкендом (коротко)
 
-Расширение зависит от бэкенда (`CLAUDE.md:93-102`): доступность `WS_URL/{roomId}`; handshake `{"type":"connect","name":"..."}` → ответ `{"type":"connect","id":"<uuid>"}` (`WebSocketClient.ts:41,44-50`); REST `/rooms` (POST/GET/PATCH/DELETE) и `/rooms/{id}/redirect`; поле `status` комнаты ∈ `waiting`/`playing`/`paused`/`pausing`. Любое переименование/изменение структуры WS-сообщения правится в обеих частях одновременно и проверяется gate-проверкой `protocol` (`scripts/protocol_sync.py`). Полный протокол — в корневом `DOCUMENTATION.md` §2.5.
+Расширение зависит от бэкенда (`CLAUDE.md:93-102`): доступность `WS_URL/{roomId}`; handshake `{"type":"connect","name":"..."}` → ответ `{"type":"connect","id":"<uuid>"}` (`WebSocketClient.ts:41,44-50`); REST `/rooms` (POST/GET/PATCH/DELETE) и `/rooms/{id}/redirect`; поле `status` комнаты ∈ `waiting`/`playing`/`paused`/`pausing`. Любое переименование/изменение структуры WS-сообщения правится в обеих частях одновременно и проверяется gate-проверкой `protocol` (`scripts/protocol_sync.py`). Полный протокол — в корневом `docs/websocket-protocol.md`.
 
 ---
 
@@ -370,7 +370,7 @@ try {
 - `../CLAUDE.md` — тонкие канонические правила расширения (стек, координаторы, флаги `ControlPlayer`, «что не делать»).
 - `./architecture.md` — структура и слои расширения (соседний документ этой папки `docs/`, если присутствует).
 - `../../CLAUDE.md` — корневой гид по обоим подпроектам и общим конвенциям.
-- `../../DOCUMENTATION.md` — полная техдокументация; §2.5 — WS-протокол (контракт BE↔FE).
+- `./websocket-protocol.md` — WS-протокол (контракт BE↔FE); `../../DOCUMENTATION.md` — обзор workspace.
 - `../README.md` — README расширения.
 - `../../scripts/README.md` — описание workspace-тулинга (`gate.py`, `arch_lint_ext.py`, `protocol_sync.py`).
 - Бэкенд-аналог: `Sync-Mate-API-WS/CLAUDE.md` и его правила линтинга (black/isort/flake8/mypy).

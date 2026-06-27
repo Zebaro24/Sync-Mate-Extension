@@ -452,6 +452,6 @@ RoomContainer (features/room/components/containers/room-container.tsx)
 
 - [`../CLAUDE.md`](../CLAUDE.md) — гид Claude по расширению (стек, флаги `ControlPlayer`, locators-чек-лист).
 - [`../../CLAUDE.md`](../../CLAUDE.md) — общий гид по репозиторию-обёртке Sync-Mate (фронт + бэк, WS-контракт).
-- [`../../DOCUMENTATION.md`](../../DOCUMENTATION.md) — полная техническая документация (WS-протокол §2.5); **частично устарела по части деплоя** — сверяйте с кодом.
+- [`../../DOCUMENTATION.md`](../../DOCUMENTATION.md) — полная техническая документация (WS-протокол (docs/websocket-protocol.md)); **частично устарела по части деплоя** — сверяйте с кодом.
 - `scripts/arch_lint_ext.py` (корень репозитория) — принудительная проверка слоёв/инвариантов расширения.
 - `scripts/arch_lint_api.py` — аналогичный страж для бэкенда `Sync-Mate-API-WS/`.
