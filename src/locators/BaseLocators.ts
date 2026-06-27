@@ -1,7 +1,7 @@
 export default class BaseLocators {
     public player!: () => HTMLElement | null;
 
-    public playerPlayBtn!: HTMLElement;
+    public playerPlayBtn!: () => HTMLElement | null;
     public playerControlTimeline!: HTMLElement;
 
     defineSelector<T extends boolean = false>(
@@ -11,12 +11,16 @@ export default class BaseLocators {
         if (all) {
             const nodes = document.querySelectorAll<HTMLElement>(selector);
             if (nodes.length === 0)
-                throw new Error(`No elements found for selector "${selector}"`);
+                throw new Error(
+                    `[${this.constructor.name}] no elements found for selector "${selector}"`,
+                );
             return nodes as any;
         } else {
             const el = document.querySelector<HTMLElement>(selector);
             if (!el)
-                throw new Error(`Element not found for selector "${selector}"`);
+                throw new Error(
+                    `[${this.constructor.name}] element not found for selector "${selector}"`,
+                );
             return el as any;
         }
     }

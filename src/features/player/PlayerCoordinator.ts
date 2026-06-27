@@ -56,17 +56,28 @@ export default class PlayerCoordinator {
     }
 
     updatePlayer() {
-        this.eventListener.disable();
-        // Перед заменой плеера гасим старый оверлей и блок Space, чтобы они не
-        // остались висеть поверх нового плеера при смене серии/озвучки.
-        this.ui.overlayLoader.hide();
-        this.controlPlayer = new ControlPlayer(this.ui);
-        this.eventListener = new EventListeners(
-            this.ui.getPlayer,
-            this.controlPlayer,
-        );
+        try {
+            // Сначала пробуем собрать сервисы на новый <video>. Если он ещё не
+            // готов (null), конструктор бросит — тогда оставляем старые
+            // слушатели нетронутыми и не падаем.
+            const controlPlayer = new ControlPlayer(this.ui);
+            const eventListener = new EventListeners(
+                this.ui.getPlayer,
+                controlPlayer,
+            );
 
-        if (this.statusCallback)
-            this.controlPlayer.onStatus(this.statusCallback);
+            // Новый плеер готов: снимаем старые слушатели и оверлей, затем
+            // переключаемся, чтобы старый блок Space не висел поверх нового.
+            this.eventListener.disable();
+            this.ui.overlayLoader.hide();
+
+            this.controlPlayer = controlPlayer;
+            this.eventListener = eventListener;
+
+            if (this.statusCallback)
+                this.controlPlayer.onStatus(this.statusCallback);
+        } catch (e) {
+            console.error("Sync-Mate updatePlayer failed:", e);
+        }
     }
 }

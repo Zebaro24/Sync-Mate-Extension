@@ -7,6 +7,16 @@ import { generateNickname } from "@/shared/utils/nickname";
 
 type RoomState = Record<string, unknown>;
 
+// Сериализуем read-modify-write над storage.session 'rooms', чтобы параллельные
+// записи (webRequest, SET_ROOM, tabs.onRemoved) не затирали друг друга.
+let writeChain: Promise<unknown> = Promise.resolve();
+
+function withRoomsLock<T>(fn: () => Promise<T>): Promise<T> {
+    const run = writeChain.then(fn, fn);
+    writeChain = run.catch(() => {});
+    return run as Promise<T>;
+}
+
 // Сохраняем комнаты в session storage — MV3 Service Worker может быть выгружен
 // в любой момент, и обычный модульный Record при этом обнуляется.
 async function loadRooms(): Promise<Record<number, RoomState>> {
@@ -28,10 +38,12 @@ async function saveRooms(rooms: Record<number, RoomState>): Promise<void> {
 }
 
 async function updateRoom(tabId: number, patch: RoomState): Promise<RoomState> {
-    const rooms = await loadRooms();
-    rooms[tabId] = { ...(rooms[tabId] || {}), ...patch };
-    await saveRooms(rooms);
-    return rooms[tabId];
+    return withRoomsLock(async () => {
+        const rooms = await loadRooms();
+        rooms[tabId] = { ...(rooms[tabId] || {}), ...patch };
+        await saveRooms(rooms);
+        return rooms[tabId];
+    });
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -55,10 +67,13 @@ export default defineBackground(() => {
                 return rooms[tabId];
             }
             case BrowserMessageTypes.SET_ROOM: {
-                const rooms = await loadRooms();
-                rooms[tabId] = msg.room;
-                await saveRooms(rooms);
-                console.log("Message set room:", rooms[tabId]);
+                const room = await withRoomsLock(async () => {
+                    const rooms = await loadRooms();
+                    rooms[tabId] = msg.room;
+                    await saveRooms(rooms);
+                    return rooms[tabId];
+                });
+                console.log("Message set room:", room);
                 return { success: true };
             }
             case BrowserMessageTypes.ADD_TO_ROOM: {
@@ -76,7 +91,13 @@ export default defineBackground(() => {
             const tabId = details.tabId;
             if (tabId < 0) return;
 
-            const roomDetails = parseUrl(details.url);
+            let roomDetails: ReturnType<typeof parseUrl>;
+            try {
+                roomDetails = parseUrl(details.url);
+            } catch (e) {
+                console.error("Failed to parse URL:", e);
+                return;
+            }
             if (!roomDetails) return;
 
             // Fire-and-forget — webRequest listener должен возвращать синхронно.
@@ -85,14 +106,17 @@ export default defineBackground(() => {
             );
             return undefined;
         },
-        { urls: parseUrls },
+        // Парсим только навигации (main_frame), а не каждый подресурс страницы.
+        { urls: parseUrls, types: ["main_frame"] },
     );
 
     browser.tabs.onRemoved.addListener(async (tabId) => {
-        const rooms = await loadRooms();
-        if (rooms[tabId]) {
-            delete rooms[tabId];
-            await saveRooms(rooms);
-        }
+        await withRoomsLock(async () => {
+            const rooms = await loadRooms();
+            if (rooms[tabId]) {
+                delete rooms[tabId];
+                await saveRooms(rooms);
+            }
+        });
     });
 });

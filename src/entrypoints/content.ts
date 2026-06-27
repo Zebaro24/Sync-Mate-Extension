@@ -3,6 +3,7 @@ import { initPlayerFeatured } from "@/features/player";
 import { initRoomFeatured } from "@/features/room";
 import { getItem } from "@/shared/storage";
 import { pickLocators } from "@/locators";
+import { waitForElement } from "@/shared/utils/waitForElement";
 
 // noinspection JSUnusedGlobalSymbols
 export default defineContentScript({
@@ -10,14 +11,29 @@ export default defineContentScript({
     // matches на YT нужно одновременно с реализацией YouTubeLocators.
     matches: ["https://rezka.ag/*.html"],
     async main() {
-        console.log("Content running...");
+        try {
+            console.log("Content running...");
 
-        getItem("name").then((name) => console.log("Name:", name));
+            getItem("name").then((name) => console.log("Name:", name));
 
-        const locators = pickLocators(location.hostname);
-        if (!locators) return;
+            const locators = pickLocators(location.hostname);
+            if (!locators) return;
 
-        const playerCoordinator = initPlayerFeatured(locators);
-        await initRoomFeatured(locators, playerCoordinator);
+            // <video> на Rezka появляется асинхронно (его вставляет плеер).
+            // Ждём элемент, иначе ControlPlayer/EventListeners упадут в
+            // конструкторе. Если не дождались — не инициализируем плеер.
+            const video = await waitForElement("video");
+            if (!video) {
+                console.warn(
+                    "Sync-Mate: видео не найдено, плеер не инициализирован",
+                );
+                return;
+            }
+
+            const playerCoordinator = initPlayerFeatured(locators);
+            await initRoomFeatured(locators, playerCoordinator);
+        } catch (e) {
+            console.error("Sync-Mate init failed:", e);
+        }
     },
 });

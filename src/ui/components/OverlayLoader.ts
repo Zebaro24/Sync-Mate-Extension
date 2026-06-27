@@ -16,7 +16,7 @@ export default class OverlayLoader {
     private wrapperLoader!: HTMLDivElement;
     private loader!: HTMLDivElement;
 
-    private playerPlayBtn: HTMLElement;
+    private playerPlayBtn: () => HTMLElement | null;
     private playerControlTimeline: HTMLElement;
 
     private handler?: (e: KeyboardEvent) => void;
@@ -25,7 +25,7 @@ export default class OverlayLoader {
         playerPlayBtn,
         playerControlTimeline,
     }: {
-        playerPlayBtn: HTMLElement;
+        playerPlayBtn: () => HTMLElement | null;
         playerControlTimeline: HTMLElement;
     }) {
         this.playerPlayBtn = playerPlayBtn;
@@ -63,8 +63,12 @@ export default class OverlayLoader {
     }
 
     show() {
-        this.playerPlayBtn.style.filter = "grayscale(90%)";
-        this.playerPlayBtn.style.opacity = "0.7";
+        // Затемнение кнопки play — косметика; если кнопки нет, просто пропускаем.
+        const playBtn = this.playerPlayBtn();
+        if (playBtn) {
+            playBtn.style.filter = "grayscale(90%)";
+            playBtn.style.opacity = "0.7";
+        }
 
         this.playerControlTimeline.before(this.overlay);
         this.playerControlTimeline.parentElement!.appendChild(
@@ -80,8 +84,11 @@ export default class OverlayLoader {
         this.overlay.remove();
         this.wrapperLoader.remove();
 
-        this.playerPlayBtn.style.filter = "";
-        this.playerPlayBtn.style.opacity = "";
+        const playBtn = this.playerPlayBtn();
+        if (playBtn) {
+            playBtn.style.filter = "";
+            playBtn.style.opacity = "";
+        }
 
         this.unblockSpace();
     }

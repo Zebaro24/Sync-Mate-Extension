@@ -22,7 +22,9 @@ export default class RezkaLocators extends BaseLocators {
         );
 
         // --- Overlay Loader ---
-        this.playerPlayBtn = this.defineSelector(
+        // Косметическая кнопка плеера: появляется асинхронно и может отсутствовать,
+        // поэтому ищем лениво и без падения.
+        this.playerPlayBtn = this.defineSelectorLazy(
             "#oframecdnplayer > pjsdiv:nth-child(20)",
         );
 

@@ -10,9 +10,11 @@ export default class ParseInfo {
     }
 
     parse() {
-        let title = this.locators.title!.textContent;
-        if (title.includes("в озвучке"))
-            title = title.split("в озвучке")[0].trim();
+        // textContent может быть null, если узел заголовка ещё не отрисован.
+        let title = this.locators.title?.textContent?.trim() ?? "";
+        // Суффикс «в озвучке» режем через indexOf — не падаем, если его нет.
+        const dubIndex = title.indexOf("в озвучке");
+        if (dubIndex !== -1) title = title.slice(0, dubIndex).trim();
 
         let translator = null;
         let translatorElem = this.locators.translator();

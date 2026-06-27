@@ -3,12 +3,14 @@ import { WSMessageTypes } from "./model/messageTypes";
 import type WebSocketClient from "./sockets/WebSocketClient";
 import type RoomService from "./services/RoomService";
 import type ParseInfo from "./utills/ParseInfo";
+import type { RoomResponse } from "./types/dtos";
 
 import type PlayerCoordinator from "@/features/player/PlayerCoordinator";
 
 import { sendMessage } from "@/shared/messaging";
 import { getItem } from "@/shared/storage";
 import { API_URL } from "@/shared/constants/api";
+import { waitForElement } from "@/shared/utils/waitForElement";
 
 import type OverlayLoader from "@/ui/components/OverlayLoader";
 import type InfoPanel from "@/ui/components/InfoPanel";
@@ -53,11 +55,77 @@ export default class RoomCoordinator {
             (await sendMessage({ type: BrowserMessageTypes.GET_ROOM })) ?? {};
         console.log("RoomId:", roomId);
 
-        if (roomId) {
-            await this.connect(roomId);
-        } else {
-            this.ui.statusBox.setText("Create room");
-            this.ui.statusBox.onClick(this.createRoom.bind(this));
+        if (!roomId) {
+            this.showCreateRoom();
+            return;
+        }
+
+        // Перед подключением убеждаемся, что комната ещё жива (NAV-2). Иначе
+        // цеплялись бы к мёртвой/чужой комнате после рестарта API или смены фильма.
+        let room: RoomResponse | null = null;
+        try {
+            room = await this.service.getRoom(roomId);
+        } catch (e) {
+            // 404 — комнаты нет: предлагаем создать новую и не подключаемся.
+            // Сетевые сбои/5xx считаем временными — поведение как раньше: пробуем
+            // подключиться, дальше решит WS (close 4000) и цикл реконнекта.
+            const status = (e as { response?: { status?: number } })?.response
+                ?.status;
+            if (status === 404) {
+                console.warn("Sync-Mate: комната не найдена — нужна новая");
+                this.showCreateRoom();
+                return;
+            }
+            console.warn("Sync-Mate: не удалось проверить комнату", e);
+        }
+
+        // Комната жива, но её видео не совпадает с текущей страницей — значит мы
+        // перешли на другой фильм. Подключаемся и переводим комнату на новое
+        // видео (NAV-1). От циклов защищает сравнение URL: тот, кто пришёл по
+        // set_video, уже находится на нужном адресе и ничего не отправит.
+        const shouldSetVideo =
+            !!room &&
+            this.isRezkaUrl(location.href) &&
+            !this.isSameVideo(room.video_url, location.href);
+
+        const connected = await this.connect(roomId);
+        if (connected && shouldSetVideo) {
+            console.log(
+                "Sync-Mate: переводим комнату на новое видео",
+                location.href,
+            );
+            this.socket.send({
+                type: WSMessageTypes.SET_VIDEO,
+                video_url: location.href,
+            });
+        }
+    }
+
+    private showCreateRoom() {
+        this.ui.statusBox.setText("Create room");
+        this.ui.statusBox.onClick(this.createRoom.bind(this));
+    }
+
+    // Считаем URL валидным источником, только если это сама Rezka по https.
+    private isRezkaUrl(raw: string): boolean {
+        try {
+            const u = new URL(raw);
+            return u.protocol === "https:" && u.hostname === "rezka.ag";
+        } catch {
+            return false;
+        }
+    }
+
+    // Сравниваем видео по origin+pathname: у Rezka идентичность фильма задаёт
+    // путь, а смена эпизода/перевода идёт через AJAX и URL не меняет. Если что-то
+    // не парсится — считаем «то же видео», чтобы не отправить set_video впустую.
+    private isSameVideo(a: string, b: string): boolean {
+        try {
+            const ua = new URL(a);
+            const ub = new URL(b);
+            return ua.origin + ua.pathname === ub.origin + ub.pathname;
+        } catch {
+            return true;
         }
     }
 
@@ -189,18 +257,12 @@ export default class RoomCoordinator {
                 this.playerCoordinator.setIsBlockPause(false);
                 break;
             case WSMessageTypes.SET_VIDEO: {
-                // Навигируем только на валидный https-URL самой Rezka.
-                const ok = (() => {
-                    try {
-                        const u = new URL(data.video_url);
-                        return (
-                            u.protocol === "https:" && u.hostname === "rezka.ag"
-                        );
-                    } catch {
-                        return false;
-                    }
-                })();
-                if (ok && data.video_url !== location.href) {
+                // Навигируем только на валидный https-URL самой Rezka и только
+                // если он отличается от текущего — иначе зациклимся на set_video.
+                if (
+                    this.isRezkaUrl(data.video_url) &&
+                    data.video_url !== location.href
+                ) {
                     console.log("Room set_video → navigating:", data.video_url);
                     window.location.href = data.video_url;
                 }
@@ -270,7 +332,15 @@ export default class RoomCoordinator {
         this.socket.send(data);
     }
 
-    private handleInfo() {
+    private async handleInfo() {
+        // При смене эпизода/перевода Rezka заменяет <video> новым элементом.
+        // Ждём его появления, иначе переинициализируем плеер на старый/пустой узел.
+        const v = await waitForElement("video");
+        if (!v) {
+            console.warn("Sync-Mate: video не появился после смены");
+            return;
+        }
+
         console.log("Update player");
         this.playerCoordinator.updatePlayer();
         this.playerCoordinator.enable();
