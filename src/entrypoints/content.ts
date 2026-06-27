@@ -9,7 +9,8 @@ import { waitForElement } from "@/shared/utils/waitForElement";
 export default defineContentScript({
     // YouTube пока не поддерживается (нет реализации locators). Возвращать
     // matches на YT нужно одновременно с реализацией YouTubeLocators.
-    matches: ["https://rezka.ag/*.html"],
+    // Второй паттерн ловит URL с query после .html (трекинг-параметры).
+    matches: ["https://rezka.ag/*.html", "https://rezka.ag/*.html?*"],
     async main() {
         try {
             console.log("Content running...");

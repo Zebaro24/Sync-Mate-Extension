@@ -82,7 +82,7 @@ export function EditModal({
                         </button>
                         <button
                             type="submit"
-                            disabled={isLoading ?? !value.trim()}
+                            disabled={isLoading || !value.trim()}
                             className="flex-1 py-2 text-xs text-white font-medium bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors"
                         >
                             {isLoading ? "..." : "Сохранить"}

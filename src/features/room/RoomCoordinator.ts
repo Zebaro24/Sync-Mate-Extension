@@ -51,8 +51,7 @@ export default class RoomCoordinator {
     }
 
     async init() {
-        const { roomId } =
-            (await sendMessage({ type: BrowserMessageTypes.GET_ROOM })) ?? {};
+        const roomId = await this.getStoredRoomId();
         console.log("RoomId:", roomId);
 
         if (!roomId) {
@@ -101,6 +100,30 @@ export default class RoomCoordinator {
         }
     }
 
+    // GET_ROOM может упасть, если service worker ещё спит ("Receiving end does
+    // not exist") — без обёртки это unhandled rejection и комната не стартует.
+    // Делаем один короткий ретрай (SW успевает проснуться), затем трактуем как
+    // «комнаты нет» — вызывающий покажет создание комнаты.
+    private async getStoredRoomId(): Promise<string | null> {
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                const { roomId } =
+                    (await sendMessage({
+                        type: BrowserMessageTypes.GET_ROOM,
+                    })) ?? {};
+                return roomId ?? null;
+            } catch (e) {
+                console.warn("Sync-Mate: GET_ROOM не ответил", e);
+                if (attempt === 0) {
+                    await new Promise<void>((resolve) =>
+                        setTimeout(resolve, 200),
+                    );
+                }
+            }
+        }
+        return null;
+    }
+
     private showCreateRoom() {
         this.ui.statusBox.setText("Create room");
         this.ui.statusBox.onClick(this.createRoom.bind(this));
@@ -140,6 +163,8 @@ export default class RoomCoordinator {
         // отработает на собственном disconnect.
         this.clearSubscriptions();
         this.socket.disconnect();
+        // Освобождаем InfoPanel: отписываем MutationObserver и убираем панель из DOM.
+        this.ui.infoPanel.dispose();
     }
 
     private clearSubscriptions() {
@@ -154,9 +179,18 @@ export default class RoomCoordinator {
                 `${userName}'s room`,
                 window.location.href,
             );
-            navigator.clipboard
-                .writeText(new URL(link, API_URL).href)
-                .then(() => console.log("Room link copied to clipboard"));
+            // Запись в буфер может быть отклонена (нет фокуса/политика страницы).
+            // Без обработки это unhandled rejection и пользователь не знает,
+            // скопировалась ли ссылка (WS-7) — даём короткий фидбэк в StatusBox.
+            try {
+                await navigator.clipboard.writeText(
+                    new URL(link, API_URL).href,
+                );
+                this.ui.statusBox.setText("Скопировано");
+            } catch (e) {
+                console.warn("Sync-Mate: не удалось скопировать ссылку", e);
+                this.ui.statusBox.setText("Скопируйте ссылку вручную");
+            }
             console.log("Room created:", roomId);
             await sendMessage({
                 type: BrowserMessageTypes.ADD_TO_ROOM,
@@ -196,9 +230,12 @@ export default class RoomCoordinator {
             // При реконнекте статусом управляет цикл переподключения.
             if (!isReconnect) {
                 this.ui.statusBox.setText("Error connecting");
+                // Клик повторяет подключение к ТОЙ ЖЕ комнате (WS-5), а не создаёт
+                // новую — иначе комната терялась и требовалось два клика. При
+                // неуспехе connect снова повесит этот же обработчик.
                 this.ui.statusBox.onClick(() => {
-                    this.ui.statusBox.setText("Create room");
-                    this.ui.statusBox.onClick(this.createRoom.bind(this));
+                    this.ui.statusBox.setText("Подключение…");
+                    this.connect(roomId);
                 });
             }
             return false;

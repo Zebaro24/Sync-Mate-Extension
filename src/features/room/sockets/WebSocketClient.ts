@@ -53,7 +53,8 @@ export default class WebSocketClient {
 
             const removeAuthMessageHandler = this.onMessage((data) => {
                 if (data.type === "connect") {
-                    setItem("id", data["id"]);
+                    // id привязан к комнате — иначе мультитаб перетирает чужой
+                    setItem("id:" + roomId, data["id"]);
                     console.log("WS authentication completed ✅");
                     finish(true);
                 }

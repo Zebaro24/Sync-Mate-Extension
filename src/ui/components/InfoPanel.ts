@@ -1,8 +1,17 @@
+// Участников, от которых дольше этого времени не было апдейтов, считаем ушедшими.
+const PARTICIPANT_TTL_MS = 12000;
+
+interface ParticipantInfo {
+    downloadedTime: number;
+    lastSeen: number;
+}
+
 export default class InfoPanel {
     private panel!: HTMLDivElement;
+    private observer?: MutationObserver;
     private playerFrame: HTMLElement;
     private readonly playerControlTimeline: HTMLElement;
-    private information: Record<string, number> = {};
+    private information: Record<string, ParticipantInfo> = {};
 
     constructor({
         playerFrame,
@@ -32,37 +41,57 @@ export default class InfoPanel {
 
         this.playerFrame.append(this.panel);
 
-        const observer = new MutationObserver(() => {
+        this.observer = new MutationObserver(() => {
             const visible =
                 window.getComputedStyle(this.playerControlTimeline)
                     .visibility !== "hidden";
             this.panel.style.visibility = visible ? "visible" : "hidden";
         });
 
-        observer.observe(this.playerControlTimeline, {
+        this.observer.observe(this.playerControlTimeline, {
             attributes: true,
             attributeFilter: ["style"],
         });
     }
 
     updatePanel() {
-        if (!this.information) {
+        // Убираем «призраков» — участников, от которых давно не было апдейтов.
+        const now = Date.now();
+        for (const [person, info] of Object.entries(this.information)) {
+            if (now - info.lastSeen > PARTICIPANT_TTL_MS) {
+                delete this.information[person];
+            }
+        }
+
+        // Нет активных участников — прячем панель.
+        if (Object.keys(this.information).length === 0) {
             this.panel.style.opacity = "0";
             return;
-        } else this.panel.style.opacity = "0.7";
+        }
+        this.panel.style.opacity = "0.7";
 
         let text = "Загружено:\n";
-        for (const [person, downloaded_time] of Object.entries(
-            this.information,
-        )) {
-            text += `${person}: ${downloaded_time}s\n`;
+        for (const [person, info] of Object.entries(this.information)) {
+            text += `${person}: ${info.downloadedTime}s\n`;
         }
         this.panel.innerText = text;
     }
 
     updateInformation(person: string, downloaded_time: number) {
-        this.information[person] = Math.round(downloaded_time);
+        // Ключуем по имени: входящий info-кадр сервера user_id не несёт.
+        this.information[person] = {
+            downloadedTime: Math.round(downloaded_time),
+            lastSeen: Date.now(),
+        };
 
         this.updatePanel();
+    }
+
+    dispose() {
+        // Симметрично teardown: отписываем observer и убираем панель из DOM.
+        this.observer?.disconnect();
+        this.observer = undefined;
+        this.panel?.remove();
+        this.information = {};
     }
 }

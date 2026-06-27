@@ -28,6 +28,12 @@ export class ControlPlayer {
     private isFirstStart: boolean = false;
     private send: SendStatusCallback = () => {};
 
+    // Троттлинг периодических status-апдейтов: на progress их несколько/с —
+    // шлём не чаще ~1/с, не теряя последний (trailing).
+    private statusThrottleMs: number = 1000;
+    private lastStatusTime: number = 0;
+    private statusTimer: ReturnType<typeof setTimeout> | null = null;
+
     constructor({
         overlayLoader,
         getPlayer,
@@ -91,12 +97,6 @@ export class ControlPlayer {
     };
 
     onTimeUpdate = () => {
-        console.log(
-            "Текущее время:",
-            this.player.currentTime,
-            this.bufferedTime.getCurrDownTime(this.player.currentTime),
-        );
-
         this.currentTime = this.player.currentTime;
     };
 
@@ -138,10 +138,6 @@ export class ControlPlayer {
         if (!this.player.duration) return;
         this.bufferedTime.update(this.player.buffered);
         this.sendStatus();
-        console.log(
-            "Download time:",
-            this.bufferedTime.getCurrDownTime(this.player.currentTime),
-        );
     };
 
     onWaiting = () => {
@@ -214,7 +210,32 @@ export class ControlPlayer {
     // endregion
 
     sendStatus(type: string = "status") {
-        console.log("Send", type, this.player.currentTime);
+        // Явные действия (play/pause/seek и т.п.) шлём сразу; периодический
+        // status троттлим до ~1/с, не теряя последний апдейт (trailing).
+        if (type !== "status") {
+            this.flushStatus(type);
+            return;
+        }
+
+        const elapsed = Date.now() - this.lastStatusTime;
+        if (elapsed >= this.statusThrottleMs) {
+            this.flushStatus(type);
+        } else if (this.statusTimer === null) {
+            this.statusTimer = setTimeout(() => {
+                this.statusTimer = null;
+                this.flushStatus("status");
+            }, this.statusThrottleMs - elapsed);
+        }
+    }
+
+    private flushStatus(type: string) {
+        // Любая реальная отправка перезапускает окно троттлинга и снимает
+        // отложенный trailing — чтобы явное действие не задублировалось status'ом.
+        if (this.statusTimer !== null) {
+            clearTimeout(this.statusTimer);
+            this.statusTimer = null;
+        }
+        this.lastStatusTime = Date.now();
         this.send({
             type: type,
             current_time: roundTime(this.player.currentTime),
@@ -232,6 +253,11 @@ export class ControlPlayer {
         this.send = callback;
         return () => {
             this.send = () => {};
+            // Снимаем отложенный trailing-status, чтобы таймер не держал ссылку.
+            if (this.statusTimer !== null) {
+                clearTimeout(this.statusTimer);
+                this.statusTimer = null;
+            }
         };
     }
 }

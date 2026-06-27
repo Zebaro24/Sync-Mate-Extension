@@ -27,7 +27,8 @@ async function fetchCurrentRoom(): Promise<RoomViewModel> {
 
     const [{ data: roomData }, myId] = await Promise.all([
         roomApi.get(roomId),
-        getItem("id") as Promise<string | undefined>,
+        // id привязан к комнате — иначе в мультитабе meUser не находится
+        getItem("id:" + roomId) as Promise<string | undefined>,
     ]);
 
     const meUser = roomData.users.find((u) => u.user_id === myId);
@@ -52,8 +53,8 @@ async function fetchCurrentRoom(): Promise<RoomViewModel> {
                       "user_id",
                       "name",
                       "downloaded_time",
-                      "info.translator",
-                      "info.url",
+                      // позиции всегда чуть разные — точное время не сравниваем
+                      "current_time",
                   ])
                 : false,
             isMe: user.user_id === myId,

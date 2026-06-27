@@ -99,7 +99,10 @@ export function RoomContainer() {
     const myUser = room?.users.find((u) => u.isMe);
 
     if (isLoading) return <RoomSkeleton />;
-    if (error) return <ErrorState error={error} onRetry={() => refetch()} />;
+    // Полноэкранная ошибка — только без данных; сбой фонового poll не должен
+    // выбрасывать из валидной комнаты.
+    if (error && !room)
+        return <ErrorState error={error} onRetry={() => refetch()} />;
     if (!room) return <EmptyState message="Комната не найдена." />;
 
     return (
@@ -111,6 +114,14 @@ export function RoomContainer() {
                 link={room.link}
                 onEditName={() => setEditingRoomName(true)}
             />
+
+            {/* Сбой фонового обновления при наличии кэш-данных */}
+            {error && (
+                <div className="flex items-center gap-1.5 px-4 py-1.5 text-[10px] text-amber-400/60 bg-amber-500/5 border-b border-amber-500/10">
+                    <ExclamationTriangleIcon className="w-3 h-3 shrink-0" />
+                    <span>Не удалось обновить данные</span>
+                </div>
+            )}
 
             <UserList
                 users={room.users}

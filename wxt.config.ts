@@ -31,7 +31,13 @@ export default defineConfig({
                 "storage",
                 "activeTab",
             ],
-            host_permissions: ["https://rezka.ag/*.html", `${backendUrl}/*`],
+            host_permissions: [
+                // Держим в синхроне с matches в content.ts
+                // (второй паттерн — URL с query после .html).
+                "https://rezka.ag/*.html",
+                "https://rezka.ag/*.html?*",
+                `${backendUrl}/*`,
+            ],
         };
     },
     zip: {
@@ -40,7 +46,10 @@ export default defineConfig({
         sourcesTemplate: "{{name}}-{{version}}-sources.zip",
     },
     modules: ["@wxt-dev/module-react"],
-    vite: () => ({
+    vite: (env) => ({
         plugins: [tailwindcss()],
+        // В прод-сборке вырезаем логи и debugger; в dev оставляем.
+        esbuild:
+            env.mode === "production" ? { drop: ["console", "debugger"] } : {},
     }),
 });

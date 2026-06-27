@@ -18,23 +18,32 @@ function withRoomsLock<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 // Сохраняем комнаты в session storage — MV3 Service Worker может быть выгружен
-// в любой момент, и обычный модульный Record при этом обнуляется.
-async function loadRooms(): Promise<Record<number, RoomState>> {
-    const sessionStorage = (browser.storage as any).session;
-    if (sessionStorage) {
-        const stored = (await sessionStorage.get("rooms")) as {
-            rooms?: Record<number, RoomState>;
-        };
-        return stored.rooms ?? {};
+// в любой момент, и обычный модульный Record при этом обнуляется. Если session
+// недоступен (старый Firefox/мобильный) — падаем на local, иначе запись молча
+// теряется и после reload всегда показывается «Create room».
+let warnedSessionFallback = false;
+
+function getRoomsStorage() {
+    const storage = browser.storage as any;
+    if (storage.session) return storage.session;
+    if (!warnedSessionFallback) {
+        warnedSessionFallback = true;
+        console.warn(
+            "Sync-Mate: storage.session недоступен — используем storage.local",
+        );
     }
-    return {};
+    return storage.local;
+}
+
+async function loadRooms(): Promise<Record<number, RoomState>> {
+    const stored = (await getRoomsStorage().get("rooms")) as {
+        rooms?: Record<number, RoomState>;
+    };
+    return stored.rooms ?? {};
 }
 
 async function saveRooms(rooms: Record<number, RoomState>): Promise<void> {
-    const sessionStorage = (browser.storage as any).session;
-    if (sessionStorage) {
-        await sessionStorage.set({ rooms });
-    }
+    await getRoomsStorage().set({ rooms });
 }
 
 async function updateRoom(tabId: number, patch: RoomState): Promise<RoomState> {
@@ -46,16 +55,30 @@ async function updateRoom(tabId: number, patch: RoomState): Promise<RoomState> {
     });
 }
 
+// Гарантирует единственный ник пользователя: если он уже есть в storage —
+// возвращаем его, иначе генерируем, дожидаемся записи (await) и возвращаем.
+// Промис кэшируется, чтобы параллельные вызовы не сгенерировали два разных имени.
+let namePromise: Promise<string> | null = null;
+
+function getOrCreateName(): Promise<string> {
+    if (!namePromise) {
+        namePromise = (async () => {
+            const existing = await getItem("name");
+            if (existing) return existing;
+            const name = generateNickname();
+            await setItem("name", name);
+            return name;
+        })();
+    }
+    return namePromise;
+}
+
 // noinspection JSUnusedGlobalSymbols
 export default defineBackground(() => {
     console.log("Background running...");
 
-    getItem("name").then((name) => {
-        if (!name)
-            setItem("name", generateNickname()).then(() =>
-                console.log("Nickname created!"),
-            );
-    });
+    // Гарантируем наличие ника при старте — атомарно, без гонки и двойной генерации.
+    getOrCreateName().then((name) => console.log("Nickname ready:", name));
 
     onMessage(async (msg, sender) => {
         const tabId = msg.activeTabId ?? sender.tab?.id;
