@@ -82,6 +82,8 @@ export default class WebSocketClient {
     onMessage(handler: (data: any) => void) {
         if (!this.ws) throw new Error("WebSocket is not connected");
 
+        // Замыкаем текущий сокет: к моменту отписки this.ws уже может быть null.
+        const ws = this.ws;
         const listener = (evt: MessageEvent) => {
             try {
                 const data = JSON.parse(evt.data);
@@ -91,14 +93,16 @@ export default class WebSocketClient {
             }
         };
 
-        this.ws.addEventListener("message", listener);
+        ws.addEventListener("message", listener);
 
-        return () => this.ws?.removeEventListener("message", listener);
+        return () => ws.removeEventListener("message", listener);
     }
 
     onClose(handler: (evt: CloseEvent) => void) {
         if (!this.ws) throw new Error("WebSocket is not connected");
 
+        // Замыкаем текущий сокет: к моменту отписки this.ws уже может быть null.
+        const ws = this.ws;
         const listener = (evt: CloseEvent) => {
             console.log("Disconnected ❌");
             console.log("Code:", evt.code);
@@ -106,8 +110,8 @@ export default class WebSocketClient {
             handler(evt);
         };
 
-        this.ws.addEventListener("close", listener);
+        ws.addEventListener("close", listener);
 
-        return () => this.ws?.removeEventListener("close", listener);
+        return () => ws.removeEventListener("close", listener);
     }
 }

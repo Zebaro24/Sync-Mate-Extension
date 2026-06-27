@@ -29,6 +29,13 @@ export default class RoomCoordinator {
 
     private unsub: (() => void)[] = [];
 
+    // Параметры сессии — нужны для переподключения при аварийном close.
+    private roomId: string | null = null;
+    private name: string | null = null;
+    private intentionalClose = false;
+    private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    private reconnectDelay = 1000;
+
     constructor(
         socket: WebSocketClient,
         service: RoomService,
@@ -55,7 +62,19 @@ export default class RoomCoordinator {
     }
 
     dispose() {
+        // Помечаем закрытие намеренным — handleWsClose не должен реконнектиться.
+        this.intentionalClose = true;
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
+        // Сначала снимаем подписки, потом рвём сокет — иначе наш же close-листенер
+        // отработает на собственном disconnect.
+        this.clearSubscriptions();
         this.socket.disconnect();
+    }
+
+    private clearSubscriptions() {
         this.unsub.forEach((fn) => fn?.());
         this.unsub = [];
     }
@@ -82,8 +101,20 @@ export default class RoomCoordinator {
         }
     }
 
-    private async connect(roomId: string) {
-        const name = (await getItem("name")) || "Guest";
+    private async connect(
+        roomId: string,
+        isReconnect = false,
+    ): Promise<boolean> {
+        // Сохраняем параметры сессии. При реконнекте имя берём прежнее —
+        // активная WS-сессия живёт под именем, переданным при первом connect.
+        this.roomId = roomId;
+        let name: string;
+        if (isReconnect && this.name) {
+            name = this.name;
+        } else {
+            name = (await getItem("name")) || "Guest";
+            this.name = name;
+        }
 
         let connected = false;
         try {
@@ -94,13 +125,19 @@ export default class RoomCoordinator {
         }
 
         if (!connected) {
-            this.ui.statusBox.setText("Error connecting");
-            this.ui.statusBox.onClick(() => {
-                this.ui.statusBox.setText("Create room");
-                this.ui.statusBox.onClick(this.createRoom.bind(this));
-            });
-            return;
+            // При реконнекте статусом управляет цикл переподключения.
+            if (!isReconnect) {
+                this.ui.statusBox.setText("Error connecting");
+                this.ui.statusBox.onClick(() => {
+                    this.ui.statusBox.setText("Create room");
+                    this.ui.statusBox.onClick(this.createRoom.bind(this));
+                });
+            }
+            return false;
         }
+
+        // Перед повторной подпиской чистим старые — иначе плодятся дубли.
+        this.clearSubscriptions();
 
         this.unsub.push(this.socket.onMessage(this.handleWsMessage.bind(this)));
         this.unsub.push(this.socket.onClose(this.handleWsClose.bind(this)));
@@ -117,6 +154,7 @@ export default class RoomCoordinator {
         this.playerCoordinator.enable();
 
         this.ui.statusBox.setText("Connected ✅");
+        return true;
     }
 
     private handleWsMessage(data: {
@@ -142,21 +180,74 @@ export default class RoomCoordinator {
             case WSMessageTypes.REMOVE_BLOCK_PAUSE:
                 this.playerCoordinator.setIsBlockPause(false);
                 break;
-            case WSMessageTypes.SET_VIDEO:
-                if (
-                    typeof data.video_url === "string" &&
-                    data.video_url !== window.location.href
-                ) {
+            case WSMessageTypes.SET_VIDEO: {
+                // Навигируем только на валидный https-URL самой Rezka.
+                const ok = (() => {
+                    try {
+                        const u = new URL(data.video_url);
+                        return (
+                            u.protocol === "https:" && u.hostname === "rezka.ag"
+                        );
+                    } catch {
+                        return false;
+                    }
+                })();
+                if (ok && data.video_url !== location.href) {
                     console.log("Room set_video → navigating:", data.video_url);
                     window.location.href = data.video_url;
                 }
                 break;
+            }
         }
     }
 
-    private handleWsClose() {
+    private handleWsClose(evt: CloseEvent) {
+        // Намеренное закрытие (dispose/выход пользователя) — реконнект не нужен.
+        if (this.intentionalClose) return;
+
         this.playerCoordinator.disable();
-        this.dispose();
+        this.clearSubscriptions();
+
+        // 4000 — комната не найдена / сервер перезапущен: реконнектиться некуда.
+        if (evt.code === 4000) {
+            this.ui.statusBox.setText("Комната закрыта");
+            this.ui.statusBox.onClick(this.createRoom.bind(this));
+            return;
+        }
+
+        this.ui.statusBox.setText("Переподключение…");
+        this.reconnectDelay = 1000;
+        this.scheduleReconnect();
+    }
+
+    private scheduleReconnect() {
+        if (this.intentionalClose || !this.roomId) return;
+        if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+
+        this.reconnectTimer = setTimeout(async () => {
+            this.reconnectTimer = null;
+            const roomId = this.roomId;
+            if (this.intentionalClose || !roomId) return;
+
+            const ok = await this.connect(roomId, true);
+            if (ok) {
+                // Переподключились — просим комнату пересинхронизировать позицию.
+                this.reconnectDelay = 1000;
+                this.socket.send({
+                    type: WSMessageTypes.LOAD,
+                    current_time: this.getCurrentTime(),
+                });
+            } else {
+                // Не вышло — следующая попытка с увеличенной задержкой (cap 30s).
+                this.reconnectDelay = Math.min(this.reconnectDelay * 2, 30000);
+                this.scheduleReconnect();
+            }
+        }, this.reconnectDelay);
+    }
+
+    private getCurrentTime(): number {
+        const video = document.querySelector("video");
+        return video ? video.currentTime : 0;
     }
 
     private handleStatus(data: any) {

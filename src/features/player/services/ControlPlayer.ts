@@ -7,6 +7,7 @@ export interface SendStatusCallback {
         type: string;
         current_time: number;
         downloaded_time: number;
+        duration: number;
     }): void;
 }
 
@@ -101,9 +102,6 @@ export class ControlPlayer {
 
     onSeeking = () => {
         console.log("Запрос на seeking", this.player.currentTime);
-        if (this.bufferedTime.getCurrDownTime(this.player.currentTime) === 0) {
-            this.isSkipWaiting = true;
-        }
         if (this.isManualSeek) {
             this.isManualSeek = false;
             return;
@@ -127,6 +125,10 @@ export class ControlPlayer {
         }
 
         console.log("Seeking применен");
+        // Реальная перемотка: если буфера в новой точке нет — пропускаем ближайший waiting
+        if (this.bufferedTime.getCurrDownTime(this.player.currentTime) === 0) {
+            this.isSkipWaiting = true;
+        }
         this.sendStatus(this.player.paused ? "pause" : "play");
         this.pause();
         this.setIsBlockPause(true);
@@ -169,9 +171,15 @@ export class ControlPlayer {
 
     play() {
         console.log("Запуск функции play");
-        this.isManualPlay = true;
+        // Метим ручной play только если плеер реально на паузе
+        if (this.player.paused) {
+            this.isManualPlay = true;
+        }
         this.setIsBlockPause(false);
-        this.player.play();
+        // При отказе промиса сбрасываем флаг, чтобы не проглотить будущее эхо
+        this.player.play()?.catch(() => {
+            this.isManualPlay = false;
+        });
     }
 
     pause() {
@@ -196,8 +204,11 @@ export class ControlPlayer {
 
         this.sendStatus();
 
-        this.isManualSeek = true;
-        this.player.currentTime = time;
+        // Перематываем только при заметной разнице — иначе это эхо без реальной перемотки
+        if (Math.abs(this.player.currentTime - time) > 0.05) {
+            this.isManualSeek = true;
+            this.player.currentTime = time;
+        }
     }
 
     // endregion
@@ -210,6 +221,10 @@ export class ControlPlayer {
             downloaded_time: roundTime(
                 this.bufferedTime.getCurrDownTime(this.player.currentTime),
             ),
+            // Длительность ролика — безопасно от NaN, чтобы бэкенд знал длину
+            duration: Number.isFinite(this.player.duration)
+                ? roundTime(this.player.duration)
+                : 0,
         });
     }
 
