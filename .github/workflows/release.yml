@@ -93,7 +93,8 @@ jobs:
           CWS_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
           CWS_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
           CWS_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
-        if: ${{ env.CWS_EXTENSION_ID != '' }}
+        # Запускается ТОЛЬКО если заданы все 4 секрета — иначе шаг пропускается (релиз не падает).
+        if: ${{ env.CWS_EXTENSION_ID != '' && env.CWS_CLIENT_ID != '' && env.CWS_CLIENT_SECRET != '' && env.CWS_REFRESH_TOKEN != '' }}
         run: |
           set -euo pipefail
           ZIP=$(ls .output/*-chrome.zip | head -n1)
