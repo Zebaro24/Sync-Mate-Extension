@@ -30,6 +30,16 @@ jobs:
       - run: npx wxt prepare
       - run: npx tsc --noEmit
 
+  arch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      # Вендорная копия workspace scripts/arch_lint_ext.py (stdlib, без зависимостей).
+      - run: python scripts/arch_lint.py
+
   tests:
     runs-on: ubuntu-latest
     steps:
