@@ -83,6 +83,44 @@ jobs:
       - name: List artifacts
         run: ls -la .output/
 
+      - name: Publish to Chrome Web Store (trusted testers)
+        # Авто-загрузка обновления в Web Store для тестеров (ты + друзья) на каждый тег v*.
+        # Публичный листинг — вручную: сменить publishTarget на 'default' и пройти ревью.
+        # Шаг ПРОПУСКАЕТСЯ, если секреты не заданы (релиз с zip'ами всё равно создастся).
+        # Нужны secrets: CHROME_EXTENSION_ID, CHROME_CLIENT_ID, CHROME_CLIENT_SECRET, CHROME_REFRESH_TOKEN.
+        env:
+          CWS_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CWS_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        if: ${{ env.CWS_EXTENSION_ID != '' }}
+        run: |
+          set -euo pipefail
+          ZIP=$(ls .output/*-chrome.zip | head -n1)
+          echo "Chrome Web Store: item=$CWS_EXTENSION_ID zip=$ZIP"
+          ACCESS_TOKEN=$(curl -sS -X POST https://oauth2.googleapis.com/token \
+            -d client_id="$CWS_CLIENT_ID" \
+            -d client_secret="$CWS_CLIENT_SECRET" \
+            -d refresh_token="$CWS_REFRESH_TOKEN" \
+            -d grant_type=refresh_token | jq -r .access_token)
+          if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" = "null" ]; then
+            echo "::error::Не удалось получить access_token (проверь CHROME_CLIENT_ID/SECRET/REFRESH_TOKEN)"; exit 1
+          fi
+          echo "Uploading package…"
+          UP=$(curl -sS -X PUT -T "$ZIP" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" -H "x-goog-api-version: 2" \
+            "https://www.googleapis.com/upload/chromewebstore/v1.1/items/$CWS_EXTENSION_ID?uploadType=media")
+          echo "$UP"
+          echo "$UP" | jq -e '.uploadState=="SUCCESS"' >/dev/null \
+            || { echo "::error::upload failed (см. itemError выше)"; exit 1; }
+          echo "Publishing to trusted testers…"
+          PUB=$(curl -sS -X POST -H "Content-Length: 0" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" -H "x-goog-api-version: 2" \
+            "https://www.googleapis.com/chromewebstore/v1.1/items/$CWS_EXTENSION_ID/publish?publishTarget=trustedTesters")
+          echo "$PUB"
+          echo "$PUB" | jq -e '.status | index("OK") != null' >/dev/null \
+            || echo "::warning::publish вернул не-OK статус — возможно, версия ушла на ревью (это нормально для нового пакета/новых разрешений)"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
