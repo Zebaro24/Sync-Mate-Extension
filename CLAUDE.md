@@ -1,6 +1,6 @@
 # CLAUDE.md — Sync-Mate-Extension
 
-Гид для Claude по расширению. Полное описание — в [../DOCUMENTATION.md](../DOCUMENTATION.md).
+Гид для Claude по расширению. **Полная документация — в [docs/](docs/)** (архитектура, WS-протокол, синхронизация плеера, локаторы, messaging, background, popup, стили, сборка/релиз, конфигурация, конвенции, ADR). Держи её в синхроне с кодом (агент `docs-sync` / `/finish`).
 
 ## Стек
 
