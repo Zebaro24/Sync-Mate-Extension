@@ -1,7 +1,7 @@
 {
   "name": "sync-mate-extension",
   "description": "Синхронизация видео между пользователями",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "scripts": {
     "dev": "wxt",
