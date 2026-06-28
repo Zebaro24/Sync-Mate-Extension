@@ -291,9 +291,11 @@ export default class RoomCoordinator {
                 );
                 break;
             case WSMessageTypes.PLAY:
+                this.ui.infoPanel.setLastAction("▶ Воспроизведение");
                 this.playerCoordinator.play();
                 break;
             case WSMessageTypes.PAUSE:
+                this.ui.infoPanel.setLastAction("⏸ Пауза");
                 this.playerCoordinator.pause();
                 break;
             case WSMessageTypes.SEEK:
@@ -398,6 +400,14 @@ export default class RoomCoordinator {
 
     private handleStatus(data: any) {
         this.socket.send(data);
+        // Сервер свой info обратно не присылает — показываем собственный буфер
+        // в панели рядом с участниками, с пометкой «(вы)».
+        if (this.name && typeof data.downloaded_time === "number") {
+            this.ui.infoPanel.updateInformation(
+                `${this.name} (вы)`,
+                data.downloaded_time,
+            );
+        }
     }
 
     private async handleInfo() {

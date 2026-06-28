@@ -37,6 +37,13 @@ export class ControlPlayer {
     private lastStatusTime: number = 0;
     private statusTimer: ReturnType<typeof setTimeout> | null = null;
 
+    // «Прогрев» плеера: после loadedmetadata Rezka ~700мс держит currentTime=0,
+    // затем прыгает на восстановленную (иногда чужую) позицию. Пока isReady=false —
+    // НЕ шлём ничего на сервер, иначе партнёра кидает в 0 / на чужую позицию.
+    private isReady: boolean = false;
+    private warmupMs: number = 1800;
+    private warmupTimer: ReturnType<typeof setTimeout> | null = null;
+
     constructor({
         overlayLoader,
         getPlayer,
@@ -48,6 +55,28 @@ export class ControlPlayer {
         if (!player) throw new Error("Player didn't find");
         this.player = player;
         this.overlayLoader = overlayLoader;
+
+        // Метаданные могли загрузиться до подписки (loadedmetadata уже не придёт) —
+        // тогда стартуем прогрев сразу, иначе ждём событие loadedmetadata.
+        if (this.player.readyState >= 1) {
+            this.isLoadedMetaData = true;
+            this.scheduleWarmup();
+        }
+    }
+
+    // Запустить/перезапустить окно прогрева. Вызывается на loadedmetadata
+    // (старт, смена серии, пересоздание media-источника плеером).
+    private scheduleWarmup() {
+        this.isReady = false;
+        if (this.warmupTimer) clearTimeout(this.warmupTimer);
+        this.warmupTimer = setTimeout(() => {
+            this.warmupTimer = null;
+            this.isReady = true;
+            log.debug(
+                "warm-up завершён → ready, ct=",
+                roundTime(this.player.currentTime),
+            );
+        }, this.warmupMs);
     }
 
     // Снимок состояния/флагов — печатаем на ключевых решениях, чтобы видеть,
@@ -70,6 +99,7 @@ export class ControlPlayer {
     onLoadedMetadata = () => {
         log.debug("Медиа загружено, длительность:", this.player.duration);
         this.isLoadedMetaData = true;
+        this.scheduleWarmup();
     };
 
     onUserPlay = () => {
@@ -117,6 +147,13 @@ export class ControlPlayer {
 
     onTimeUpdate = () => {
         this.currentTime = this.player.currentTime;
+        // Прогресс по таймеру воспроизведения: при полном буфере событие progress
+        // молчит, и партнёр видит устаревший downloaded_time. Троттлинг внутри
+        // sendStatus не даёт спама.
+        if (this.player.duration) {
+            this.bufferedTime.update(this.player.buffered);
+            this.sendStatus();
+        }
     };
 
     onSeeking = () => {
@@ -234,6 +271,12 @@ export class ControlPlayer {
     // endregion
 
     sendStatus(type: string = "status") {
+        // Во время прогрева плеера (старт/смена серии) НЕ шлём ничего на сервер —
+        // плеер ещё дёргается на ct=0 и восстанавливает позицию.
+        if (!this.isReady) {
+            log.debug("warm-up: подавлен исходящий", type);
+            return;
+        }
         // Явные действия (play/pause/seek и т.п.) шлём сразу; периодический
         // status троттлим до ~1/с, не теряя последний апдейт (trailing).
         if (type !== "status") {
@@ -281,6 +324,10 @@ export class ControlPlayer {
             if (this.statusTimer !== null) {
                 clearTimeout(this.statusTimer);
                 this.statusTimer = null;
+            }
+            if (this.warmupTimer !== null) {
+                clearTimeout(this.warmupTimer);
+                this.warmupTimer = null;
             }
         };
     }

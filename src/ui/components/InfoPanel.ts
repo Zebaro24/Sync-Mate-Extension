@@ -12,6 +12,9 @@ export default class InfoPanel {
     private playerFrame: HTMLElement;
     private readonly playerControlTimeline: HTMLElement;
     private information: Record<string, ParticipantInfo> = {};
+    // Последнее действие в комнате (пауза/воспроизведение) — короткая строка с авто-сбросом.
+    private lastAction: string = "";
+    private lastActionTimer?: ReturnType<typeof setTimeout>;
 
     constructor({
         playerFrame,
@@ -63,16 +66,21 @@ export default class InfoPanel {
             }
         }
 
-        // Нет активных участников — прячем панель.
-        if (Object.keys(this.information).length === 0) {
+        const hasParticipants = Object.keys(this.information).length > 0;
+        // Нечего показывать — прячем панель.
+        if (!hasParticipants && !this.lastAction) {
             this.panel.style.opacity = "0";
             return;
         }
         this.panel.style.opacity = "0.7";
 
-        let text = "Загружено:\n";
-        for (const [person, info] of Object.entries(this.information)) {
-            text += `${person}: ${info.downloadedTime}s\n`;
+        let text = "";
+        if (this.lastAction) text += `${this.lastAction}\n`;
+        if (hasParticipants) {
+            text += "Загружено:\n";
+            for (const [person, info] of Object.entries(this.information)) {
+                text += `${person}: ${info.downloadedTime}s\n`;
+            }
         }
         this.panel.innerText = text;
     }
@@ -87,8 +95,20 @@ export default class InfoPanel {
         this.updatePanel();
     }
 
+    // Короткое уведомление о действии в комнате (пауза/воспроизведение), гаснет само.
+    setLastAction(text: string) {
+        this.lastAction = text;
+        this.updatePanel();
+        if (this.lastActionTimer) clearTimeout(this.lastActionTimer);
+        this.lastActionTimer = setTimeout(() => {
+            this.lastAction = "";
+            this.updatePanel();
+        }, 4000);
+    }
+
     dispose() {
         // Симметрично teardown: отписываем observer и убираем панель из DOM.
+        if (this.lastActionTimer) clearTimeout(this.lastActionTimer);
         this.observer?.disconnect();
         this.observer = undefined;
         this.panel?.remove();
