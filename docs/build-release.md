@@ -150,7 +150,7 @@ CI читает архивы именно по этой маске — не ме
 |---|---|---|
 | `name` | `Sync-Mate` | `wxt.config.ts:21` |
 | `version` | из `package.json` | WXT подставляет автоматически |
-| `permissions` | `clipboardWrite`, `webRequest`, `storage`, `activeTab` | `wxt.config.ts:28-33` |
+| `permissions` | `clipboardWrite`, `webRequest`, `storage` | `wxt.config.ts` |
 | `host_permissions` | `https://rezka.ag/*.html`, `${backendUrl}/*` | `wxt.config.ts:34` |
 | `web_accessible_resources` | `icon/48.png` для `<all_urls>` | `wxt.config.ts:22-27` |
 

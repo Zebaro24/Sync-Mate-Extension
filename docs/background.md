@@ -22,8 +22,9 @@
 |---|---|
 | `webRequest` | подписка `onBeforeRequest` |
 | `storage` | `storage.session` (state комнат) + `storage.local` (ник, `id`) |
-| `activeTab` | popup определяет активную вкладку |
 | `host_permissions: ["https://rezka.ag/*.html", "${backendUrl}/*"]` | без host-доступа `webRequest` не увидит запросы к этим URL |
+
+> Popup определяет активную вкладку через `browser.tabs.query` (читает только `tab.id`) — для этого разрешение `activeTab` не нужно и не запрашивается.
 
 ---
 

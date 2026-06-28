@@ -37,7 +37,7 @@ npm run prepare      # wxt prepare (генерирует .wxt/типы)
 - `imports: false` — **авто-импорты WXT отключены**. Всё, что нужно из WXT-рантайма (`browser`, `defineContentScript`, `defineBackground`, тип `Browser`), импортируется явно из виртуального модуля `#imports`. Поэтому в коде нет «магических» глобалей.
 - `modules: ["@wxt-dev/module-react"]` — поддержка React в popup-энтрипоинте.
 - `manifest()` — функция, читающая `import.meta.env.WXT_BACKEND_URL` для подстановки `host_permissions` бэкенда (`wxt.config.ts:16-35`).
-- `permissions`: `clipboardWrite`, `webRequest`, `storage`, `activeTab` (`wxt.config.ts:28-33`).
+- `permissions`: `clipboardWrite`, `webRequest`, `storage` (`wxt.config.ts`). `activeTab` намеренно не запрашивается (нет `executeScript`/`insertCSS`; `tabs.query` читает только `tab.id`).
 - `host_permissions`: `https://rezka.ag/*.html` + `${backendUrl}/*` (`wxt.config.ts:34`).
 - `web_accessible_resources`: `icon/48.png` для `<all_urls>` — нужно, чтобы `StatusBox` мог подгрузить иконку на странице Rezka (`wxt.config.ts:22-27`, использование — `ui/components/StatusBox.ts:55`).
 - `zip.artifactTemplate: "{{name}}-{{version}}-{{browser}}.zip"` — CI читает артефакт по этой маске.

@@ -206,7 +206,7 @@ manifest: () => {
         web_accessible_resources: [
             { resources: ["icon/48.png"], matches: ["<all_urls>"] },
         ],
-        permissions: ["clipboardWrite", "webRequest", "storage", "activeTab"],
+        permissions: ["clipboardWrite", "webRequest", "storage"],
         host_permissions: ["https://rezka.ag/*.html", `${backendUrl}/*`],
     };
 },
@@ -220,14 +220,15 @@ manifest: () => {
 
 ### 5.2. Permissions
 
-`permissions: ["clipboardWrite", "webRequest", "storage", "activeTab"]` (`wxt.config.ts:28-33`):
+`permissions: ["clipboardWrite", "webRequest", "storage"]` (`wxt.config.ts`):
 
 | Permission | Зачем нужен | Где используется |
 |---|---|---|
-| `clipboardWrite` | копировать ссылку-приглашение в комнату | `RoomCoordinator.ts:70` и `room-header.tsx:60` (`navigator.clipboard.writeText`) |
-| `webRequest` | отслеживать переходы на страницы Rezka и redirect-URL комнат | `background.ts:74-89` — `webRequest.onBeforeRequest` с фильтром `{ urls: parseUrls }` |
-| `storage` | хранить никнейм/настройки (`storage.local`) и state комнат по вкладкам (`storage.session`) | `src/shared/storage`, background SW |
-| `activeTab` | доступ к активной вкладке для popup-действий | popup / взаимодействие с текущей страницей |
+| `clipboardWrite` | копировать ссылку-приглашение в комнату | `RoomCoordinator.ts:192` (content) и `room-header.tsx:60` (popup) — `navigator.clipboard.writeText`. В content-скрипте без разрешения writeText требует фокус/жест и падает |
+| `webRequest` | отслеживать переходы на страницы Rezka и redirect-URL комнат | `background.ts` — `webRequest.onBeforeRequest` (`main_frame`) с фильтром `{ urls: parseUrls }`. Только наблюдение, без `webRequestBlocking` |
+| `storage` | хранить никнейм (`storage.local` ключи `name`/`id:<roomId>`) и state комнат по вкладкам (`storage.session` ключ `rooms`) | `src/shared/storage`, background SW |
+
+> **`activeTab` намеренно НЕ запрашивается.** Расширение не использует `scripting.executeScript`/`insertCSS`, а единственный `browser.tabs.query` (`use-room.ts:13`) читает только `tab.id` — несенситивное поле, доступное без разрешений. Контент-скрипт инжектится статически по `matches` + `host_permissions`. Поэтому `activeTab` ничего бы не давал — не добавляйте его обратно.
 
 Поток `webRequest` пошагово (`background.ts:74-89`):
 

@@ -25,17 +25,35 @@ export default defineConfig({
                     matches: ["<all_urls>"],
                 },
             ],
+            // Каждое разрешение аннотировано: что/где/зачем — чтобы потом не
+            // было вопросов и случайно не вернулось лишнее. activeTab НЕ нужен:
+            // executeScript/insertCSS не используются, а единственный tabs.query
+            // (use-room.ts) читает только tab.id — несенситивное поле, доступное
+            // без разрешений; tabs.onRemoved разрешения тоже не требует.
             permissions: [
+                // navigator.clipboard.writeText — копирование ссылки-приглашения.
+                // Где: RoomCoordinator.ts (content-скрипт) + room-header.tsx
+                // (popup). В content-скрипте без разрешения writeText требует
+                // фокус/жест и падает — поэтому разрешение обязательно.
                 "clipboardWrite",
+                // background.ts → webRequest.onBeforeRequest (только main_frame).
+                // Ловит навигацию на rezka *.html и на backend /rooms/{id}/redirect,
+                // чтобы привязать состояние комнаты к вкладке ещё до загрузки
+                // страницы. Только наблюдение — без webRequestBlocking.
                 "webRequest",
+                // Где: background.ts (storage.session 'rooms' + fallback local)
+                // и shared/storage ('name', 'id:<roomId>'). Состояние комнат по
+                // вкладкам и никнейм пользователя.
                 "storage",
-                "activeTab",
             ],
             host_permissions: [
-                // Держим в синхроне с matches в content.ts
-                // (второй паттерн — URL с query после .html).
+                // Держим в синхроне с matches в content.ts (второй паттерн —
+                // URL с query после .html). Нужно для инжекта content-скрипта и
+                // чтобы webRequest вообще срабатывал на rezka.
                 "https://rezka.ag/*.html",
                 "https://rezka.ag/*.html?*",
+                // REST-вызовы к бэкенду (roomApi/axios) из popup и content +
+                // перехват redirect-навигации тем же webRequest'ом.
                 `${backendUrl}/*`,
             ],
         };
