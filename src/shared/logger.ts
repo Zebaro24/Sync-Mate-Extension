@@ -1,10 +1,10 @@
 /**
  * Лёгкий переключаемый логгер для отладки (рассинхрон, подключение, плеер, парсинг).
  *
- * Включён по умолчанию в dev-сборке (`npm run dev`) — там и ловим баги.
- * В production выключен, но можно включить прямо в консоли страницы:
- *   __syncMateDebug(true)      // и перезагрузить страницу
- * либо вручную: localStorage["sync-mate:debug"] = "1".
+ * ВРЕМЕННО включён по умолчанию везде (включая production) — ловим баги. Вернуть к
+ * `import.meta.env.DEV ?? false` после устранения. Точечно выключить можно в консоли страницы:
+ *   __syncMateDebug(false)     // и перезагрузить страницу
+ * либо вручную: localStorage["sync-mate:debug"] = "0".
  *
  * warn/error печатаются ВСЕГДА — это реальные проблемы, а не отладочный шум.
  *
@@ -29,7 +29,7 @@ function readOverride(): boolean | null {
     return null;
 }
 
-const enabledDefault: boolean = import.meta.env.DEV ?? false;
+const enabledDefault: boolean = true; // временно: полный дебаг везде (вкл. production), до устранения багов
 let enabled: boolean = readOverride() ?? enabledDefault;
 
 export function setDebug(on: boolean): void {
